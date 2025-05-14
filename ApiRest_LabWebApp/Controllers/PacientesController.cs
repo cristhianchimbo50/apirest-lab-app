@@ -29,7 +29,7 @@ public class PacientesController : ControllerBase
                 CorreoElectronicoPaciente = p.CorreoElectronicoPaciente,
                 TelefonoPaciente = p.TelefonoPaciente,
                 FechaRegistro = p.FechaRegistro.HasValue ? DateTime.Parse(p.FechaRegistro.Value.ToString()) : null,
-                Anulado = p.Anulado ?? false, // Fix for CS0266 and CS8629
+                Anulado = p.Anulado ?? false,
                 IdUsuario = p.IdUsuario
             })
             .ToListAsync();
