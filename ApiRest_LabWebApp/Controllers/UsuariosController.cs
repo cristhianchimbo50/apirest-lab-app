@@ -56,6 +56,7 @@ namespace ApiRest_LabWebApp.Controllers
             {
                 Token = GenerarTokenJwt(usuario),
                 Nombre = usuario.Nombre,
+                CorreoUsuario = usuario.CorreoUsuario, // <- AÑADIR
                 Rol = usuario.Rol,
                 EsContraseñaTemporal = usuario.EsContraseñaTemporal ?? true
 

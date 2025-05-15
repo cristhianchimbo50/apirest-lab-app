@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
-[Route("api/[controller]")]
+[Authorize]
 [ApiController]
+[Route("api/[controller]")]
 public class PacientesController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -15,6 +17,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize]
     public async Task<ActionResult<IEnumerable<PacienteDto>>> GetPacientes()
     {
         var pacientes = await _context.Pacientes
@@ -38,6 +41,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize]
     public async Task<ActionResult<PacienteDto>> GetPaciente(int id)
     {
         var p = await _context.Pacientes.FindAsync(id);
@@ -66,6 +70,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult<PacienteDto>> PostPaciente(PacienteDto dto)
     {
         var paciente = new Paciente
@@ -91,6 +96,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize]
     public async Task<IActionResult> PutPaciente(int id, PacienteDto dto)
     {
         if (id != dto.IdPaciente)
@@ -130,6 +136,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize]
     public async Task<IActionResult> DeletePaciente(int id)
     {
         var paciente = await _context.Pacientes.FindAsync(id);

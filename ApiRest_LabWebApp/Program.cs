@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-
+using Microsoft.OpenApi.Models;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
@@ -24,12 +25,52 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("PermitirBlazor", policy =>
     {
-        policy.WithOrigins("https://localhost:7230") // El puerto de tu Blazor Server
-              .AllowAnyHeader()
+        policy.WithOrigins("https://localhost:7230")
+              .AllowAnyHeader()          // ✅ PERMITE Authorization correctamente
               .AllowAnyMethod()
               .AllowCredentials();
     });
 });
+
+//builder.Services.AddControllers().AddJsonOptions(options =>
+//{
+//    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+//    options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+//    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+//});
+
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "API REST", Version = "v1" });
+
+    // 🔐 Configurar el esquema JWT
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingrese 'Bearer' seguido del token JWT generado."
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+
 
 var jwtKey = builder.Configuration["Jwt:Key"];
 
@@ -48,9 +89,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+
         };
 
-        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        options.Events = new JwtBearerEvents
         {
             OnAuthenticationFailed = context =>
             {
@@ -65,6 +107,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+Console.WriteLine($"🔍 JWT Issuer configurado: {builder.Configuration["Jwt:Issuer"]}");
+Console.WriteLine($"🔍 JWT Audience configurado: {builder.Configuration["Jwt:Audience"]}");
 
 builder.Services.AddAuthorization();
 
@@ -72,7 +116,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 app.UseCors("PermitirBlazor");
-
+app.UseHttpsRedirection();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -81,15 +125,18 @@ if (app.Environment.IsDevelopment())
 }
 app.Use(async (context, next) =>
 {
-    Console.WriteLine("🛂 Headers recibidos:");
-    foreach (var h in context.Request.Headers)
-        Console.WriteLine($"   {h.Key}: {h.Value}");
-
+    Console.WriteLine("🔎 Headers recibidos:");
+    foreach (var header in context.Request.Headers)
+    {
+        Console.WriteLine($"{header.Key}: {header.Value}");
+    }
     await next();
 });
+
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHttpsRedirection();
-app.UseAuthorization();
+
+
 app.MapControllers();
 app.Run();
