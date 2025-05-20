@@ -6,10 +6,6 @@ namespace ApiRest_LabWebApp.Models;
 
 public partial class BdLabContext : DbContext
 {
-    public BdLabContext()
-    {
-    }
-
     public BdLabContext(DbContextOptions<BdLabContext> options)
         : base(options)
     {
@@ -26,6 +22,8 @@ public partial class BdLabContext : DbContext
     public virtual DbSet<DetalleResultado> DetalleResultados { get; set; }
 
     public virtual DbSet<Examen> Examen { get; set; }
+
+    public virtual DbSet<ExamenComposicion> ExamenComposiciones { get; set; }
 
     public virtual DbSet<ExamenReactivo> ExamenReactivos { get; set; }
 
@@ -44,10 +42,6 @@ public partial class BdLabContext : DbContext
     public virtual DbSet<Resultado> Resultados { get; set; }
 
     public virtual DbSet<Usuario> Usuarios { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=ASUS_CRISTHIAN\\SQLEXPRESS;Database=BD_Lab;User Id=sa;Password=randomcch1203;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -205,6 +199,10 @@ public partial class BdLabContext : DbContext
             entity.Property(e => e.Anulado)
                 .HasDefaultValue(false)
                 .HasColumnName("anulado");
+            entity.Property(e => e.Estudio)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("estudio");
             entity.Property(e => e.IdUsuario).HasColumnName("id_usuario");
             entity.Property(e => e.NombreExamen)
                 .HasMaxLength(100)
@@ -212,6 +210,26 @@ public partial class BdLabContext : DbContext
             entity.Property(e => e.Precio)
                 .HasColumnType("decimal(10, 2)")
                 .HasColumnName("precio");
+            entity.Property(e => e.Tecnica)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("tecnica");
+            entity.Property(e => e.TiempoEntrega)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("tiempo_entrega");
+            entity.Property(e => e.TipoExamen)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("tipo_examen");
+            entity.Property(e => e.TipoMuestra)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("tipo_muestra");
+            entity.Property(e => e.TituloExamen)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("titulo_examen");
             entity.Property(e => e.Unidad)
                 .HasMaxLength(50)
                 .HasColumnName("unidad");
@@ -223,6 +241,30 @@ public partial class BdLabContext : DbContext
                 .HasForeignKey(d => d.IdUsuario)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK__examen__id_usuar__5812160E");
+
+            
+        });
+
+        modelBuilder.Entity<ExamenComposicion>(entity =>
+        {
+            entity.HasKey(e => new { e.IdExamenPadre, e.IdExamenHijo }).HasName("PK_examen_composicion");
+
+            entity.ToTable("examen_composicion");
+
+            entity.Property(e => e.IdExamenPadre).HasColumnName("id_examen_padre");
+            entity.Property(e => e.IdExamenHijo).HasColumnName("id_examen_hijo");
+
+            entity.HasOne(d => d.ExamenPadre)
+                .WithMany()
+                .HasForeignKey(d => d.IdExamenPadre)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_examen_composicion_padre");
+
+            entity.HasOne(d => d.ExamenHijo)
+                .WithMany()
+                .HasForeignKey(d => d.IdExamenHijo)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_examen_composicion_hijo");
         });
 
         modelBuilder.Entity<ExamenReactivo>(entity =>
