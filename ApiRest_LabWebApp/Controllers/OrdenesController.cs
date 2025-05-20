@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -93,4 +95,32 @@ public class OrdenesController : ControllerBase
     {
         return _context.Ordens.Any(e => e.IdOrden == id);
     }
+
+    [HttpGet("paciente-por-cedula/{cedula}")]
+    [Authorize]
+    public async Task<ActionResult<PacienteDto>> ObtenerPacientePorCedula(string cedula)
+    {
+        var paciente = await _context.Pacientes
+            .Where(p => p.CedulaPaciente == cedula && !(p.Anulado ?? false))
+            .FirstOrDefaultAsync();
+
+        if (paciente == null)
+            return NotFound();
+
+        return new PacienteDto
+        {
+            IdPaciente = paciente.IdPaciente,
+            CedulaPaciente = paciente.CedulaPaciente,
+            NombrePaciente = paciente.NombrePaciente,
+            FechaNacPaciente = DateTime.Parse(paciente.FechaNacPaciente.ToString()),
+            EdadPaciente = paciente.EdadPaciente,
+            DireccionPaciente = paciente.DireccionPaciente,
+            CorreoElectronicoPaciente = paciente.CorreoElectronicoPaciente,
+            TelefonoPaciente = paciente.TelefonoPaciente,
+            FechaRegistro = paciente.FechaRegistro,
+            Anulado = paciente.Anulado ?? false,
+            IdUsuario = paciente.IdUsuario
+        };
+    }
+
 }
