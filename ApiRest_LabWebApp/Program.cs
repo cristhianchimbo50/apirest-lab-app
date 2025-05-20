@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
+using ApiRest_LabWebApp.Services;
+using ApiRest_LabWebApp.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
@@ -26,7 +28,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("PermitirBlazor", policy =>
     {
         policy.WithOrigins("https://localhost:7230")
-              .AllowAnyHeader()          // ✅ PERMITE Authorization correctamente
+              .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
     });
@@ -75,7 +77,7 @@ builder.Services.AddSwaggerGen(c =>
 var jwtKey = builder.Configuration["Jwt:Key"];
 
 if (string.IsNullOrEmpty(jwtKey))
-    throw new InvalidOperationException("❌ No se encontró la clave JWT en appsettings.json");
+    throw new InvalidOperationException("No se encontró la clave JWT en appsettings.json");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -96,22 +98,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnAuthenticationFailed = context =>
             {
-                Console.WriteLine($"❌ JWT Rechazado: {context.Exception.Message}");
+                Console.WriteLine($"JWT Rechazado: {context.Exception.Message}");
                 return Task.CompletedTask;
             },
             OnTokenValidated = context =>
             {
-                Console.WriteLine("✅ JWT Aceptado: " + context.Principal?.Identity?.Name);
+                Console.WriteLine("JWT Aceptado: " + context.Principal?.Identity?.Name);
                 return Task.CompletedTask;
             }
         };
     });
 
-Console.WriteLine($"🔍 JWT Issuer configurado: {builder.Configuration["Jwt:Issuer"]}");
-Console.WriteLine($"🔍 JWT Audience configurado: {builder.Configuration["Jwt:Audience"]}");
+Console.WriteLine($"JWT Issuer configurado: {builder.Configuration["Jwt:Issuer"]}");
+Console.WriteLine($"JWT Audience configurado: {builder.Configuration["Jwt:Audience"]}");
 
 builder.Services.AddAuthorization();
-
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("Email"));
 
 var app = builder.Build();
 
@@ -125,7 +129,7 @@ if (app.Environment.IsDevelopment())
 }
 app.Use(async (context, next) =>
 {
-    Console.WriteLine("🔎 Headers recibidos:");
+    Console.WriteLine("Headers recibidos:");
     foreach (var header in context.Request.Headers)
     {
         Console.WriteLine($"{header.Key}: {header.Value}");

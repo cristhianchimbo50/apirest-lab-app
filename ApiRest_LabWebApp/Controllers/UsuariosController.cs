@@ -7,6 +7,7 @@ using System.Text;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using ApiRest_LabWebApp.Services;
 
 namespace ApiRest_LabWebApp.Controllers
 {
@@ -16,14 +17,14 @@ namespace ApiRest_LabWebApp.Controllers
     {
         private readonly BdLabContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
-        public UsuariosController(BdLabContext context, IConfiguration configuration)
+
+        public UsuariosController(BdLabContext context, IConfiguration configuration, IEmailService emailService)
         {
             _context = context;
             _configuration = configuration;
-
-            Console.WriteLine("🔍 Conexión actual de la API REST:");
-            Console.WriteLine(_context.Database.GetDbConnection().ConnectionString);
+            _emailService = emailService;
         }
 
 
@@ -31,7 +32,7 @@ namespace ApiRest_LabWebApp.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequestDto request)
         {
-            Console.WriteLine($"🛠 BODY request: {request.CorreoUsuario} - {request.Clave}");
+            Console.WriteLine($"BODY request: {request.CorreoUsuario} - {request.Clave}");
 
             var correo = request.CorreoUsuario.Trim().ToLower();
             var usuario = _context.Usuarios
@@ -49,7 +50,7 @@ namespace ApiRest_LabWebApp.Controllers
 
 
             var token = GenerarTokenJwt(usuario);
-            Console.WriteLine("✅ Token generado desde API: " + token);
+            Console.WriteLine("Token generado desde API: " + token);
 
 
             return Ok(new LoginResponseDto
@@ -164,8 +165,8 @@ namespace ApiRest_LabWebApp.Controllers
             var correo = User.Identity?.Name?.Trim().ToLower();
             var rol = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value?.Trim().ToLower();
 
-            Console.WriteLine($"🔍 Correo del token: '{correo}'");
-            Console.WriteLine($"🔍 Rol del token: '{rol}'");
+            Console.WriteLine($"Correo del token: '{correo}'");
+            Console.WriteLine($"Rol del token: '{rol}'");
 
             var usuario = await _context.Usuarios.FirstOrDefaultAsync(u =>
                 u.CorreoUsuario.Trim().ToLower() == correo &&
@@ -174,14 +175,68 @@ namespace ApiRest_LabWebApp.Controllers
 
             if (usuario == null)
             {
-                Console.WriteLine("❌ Token inválido o desactualizado: no coincide con base.");
+                Console.WriteLine("Token inválido o desactualizado: no coincide con base.");
                 return BadRequest("Token inválido o desactualizado.");
             }
 
-            Console.WriteLine("✅ Token válido. Usuario confirmado: " + usuario.Nombre);
+            Console.WriteLine("Token válido. Usuario confirmado: " + usuario.Nombre);
             return Ok("Token válido.");
         }
+        private static string GenerarClaveTemporal()
+        {
+            return Guid.NewGuid().ToString("N")[..8]; // Ej: clave de 8 caracteres
+        }
 
+        [HttpPost("registrar")]
+        [Authorize(Roles = "administrador")]
+        public async Task<IActionResult> RegistrarUsuario([FromBody] CrearUsuarioDto nuevo)
+        {
+            if (await _context.Usuarios.AnyAsync(u => u.CorreoUsuario.ToLower() == nuevo.CorreoUsuario.ToLower()))
+                return BadRequest("El correo ya está registrado.");
+
+            var claveTemporal = GenerarClaveTemporal();
+            var claveHash = BCrypt.Net.BCrypt.HashPassword(claveTemporal);
+
+            var usuario = new Usuario
+            {
+                Nombre = nuevo.Nombre,
+                CorreoUsuario = nuevo.CorreoUsuario,
+                ClaveUsuario = claveHash,
+                Rol = nuevo.Rol,
+                EstadoRegistro = true,
+                EsContraseñaTemporal = true
+            };
+
+            _context.Usuarios.Add(usuario);
+            await _context.SaveChangesAsync();
+
+            // Aquí luego se enviará un correo real
+            await _emailService.SendTemporaryPasswordEmailAsync(nuevo.CorreoUsuario, claveTemporal);
+
+            return Ok("Usuario registrado correctamente.");
+        }
+
+        [Authorize]
+        [HttpPut("cambiar-clave")]
+        public async Task<IActionResult> CambiarClave([FromBody] CambiarClaveDto dto)
+        {
+            var correoToken = User.Identity?.Name?.Trim().ToLower();
+            if (correoToken != dto.CorreoUsuario.Trim().ToLower())
+                return Forbid("No puede cambiar la contraseña de otro usuario.");
+
+            var usuario = await _context.Usuarios
+                .FirstOrDefaultAsync(u => u.CorreoUsuario.ToLower() == dto.CorreoUsuario.ToLower());
+
+            if (usuario == null)
+                return NotFound("Usuario no encontrado.");
+
+            usuario.ClaveUsuario = BCrypt.Net.BCrypt.HashPassword(dto.NuevaClave);
+            usuario.EsContraseñaTemporal = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok("Contraseña actualizada.");
+        }
 
     }
 }
