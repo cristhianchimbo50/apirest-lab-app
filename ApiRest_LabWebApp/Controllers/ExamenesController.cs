@@ -1,92 +1,183 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
+using ApiRest_LabWebApp.Dto;
 
-[Route("api/[controller]")]
-[ApiController]
-public class ExamenesController : ControllerBase
+namespace ApiRest_LabWebApp.Controllers
 {
-    private readonly BdLabContext _context;
-
-    public ExamenesController(BdLabContext context)
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class ExamenesController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly BdLabContext _context;
 
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<Examen>>> GetExamenes()
-    {
-        return await _context.Examen
-            .Include(e => e.IdUsuarioNavigation)
-            .ToListAsync();
-    }
-
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Examen>> GetExamen(int id)
-    {
-        var examen = await _context.Examen
-            .Include(e => e.IdUsuarioNavigation)
-            .FirstOrDefaultAsync(e => e.IdExamen == id);
-
-        if (examen == null)
+        public ExamenesController(BdLabContext context)
         {
-            return NotFound();
+            _context = context;
         }
 
-        return examen;
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<Examen>> PostExamen(Examen examen)
-    {
-        _context.Examen.Add(examen);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetExamen), new { id = examen.IdExamen }, examen);
-    }
-
-    [HttpPut("{id}")]
-    public async Task<IActionResult> PutExamen(int id, Examen examen)
-    {
-        if (id != examen.IdExamen)
+        // GET: api/examenes
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<ExamenDto>>> GetExamenes()
         {
-            return BadRequest();
+            var examenes = await _context.Examen
+                .Where(e => e.Anulado != true)
+                .ToListAsync();
+
+            var dtoList = examenes.Select(e => new ExamenDto
+            {
+                IdExamen = e.IdExamen,
+                NombreExamen = e.NombreExamen,
+                ValorReferencia = e.ValorReferencia,
+                Unidad = e.Unidad,
+                Precio = e.Precio,
+                Anulado = e.Anulado,
+                Estudio = e.Estudio,
+                TipoMuestra = e.TipoMuestra,
+                TiempoEntrega = e.TiempoEntrega,
+                TipoExamen = e.TipoExamen,
+                Tecnica = e.Tecnica,
+                TituloExamen = e.TituloExamen
+            });
+
+            return Ok(dtoList);
         }
 
-        _context.Entry(examen).State = EntityState.Modified;
+        // GET: api/examenes/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ExamenDto>> GetExamen(int id)
+        {
+            var e = await _context.Examen.FindAsync(id);
 
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!ExamenExists(id))
+            if (e == null || e.Anulado == true)
                 return NotFound();
-            else
-                throw;
+
+            return new ExamenDto
+            {
+                IdExamen = e.IdExamen,
+                NombreExamen = e.NombreExamen,
+                ValorReferencia = e.ValorReferencia,
+                Unidad = e.Unidad,
+                Precio = e.Precio,
+                Anulado = e.Anulado,
+                Estudio = e.Estudio,
+                TipoMuestra = e.TipoMuestra,
+                TiempoEntrega = e.TiempoEntrega,
+                TipoExamen = e.TipoExamen,
+                Tecnica = e.Tecnica,
+                TituloExamen = e.TituloExamen
+            };
         }
 
-        return NoContent();
-    }
-
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteExamen(int id)
-    {
-        var examen = await _context.Examen.FindAsync(id);
-        if (examen == null)
+        // POST: api/examenes
+        [HttpPost]
+        public async Task<ActionResult<ExamenDto>> PostExamen(ExamenDto dto)
         {
-            return NotFound();
+            var examen = new Examen
+            {
+                NombreExamen = dto.NombreExamen,
+                ValorReferencia = dto.ValorReferencia,
+                Unidad = dto.Unidad,
+                Precio = dto.Precio,
+                Anulado = dto.Anulado,
+                Estudio = dto.Estudio,
+                TipoMuestra = dto.TipoMuestra,
+                TiempoEntrega = dto.TiempoEntrega,
+                TipoExamen = dto.TipoExamen,
+                Tecnica = dto.Tecnica,
+                TituloExamen = dto.TituloExamen
+            };
+
+            _context.Examen.Add(examen);
+            await _context.SaveChangesAsync();
+
+            dto.IdExamen = examen.IdExamen;
+            return CreatedAtAction(nameof(GetExamen), new { id = examen.IdExamen }, dto);
         }
 
-        _context.Examen.Remove(examen);
-        await _context.SaveChangesAsync();
+        [HttpPost("con-hijos")]
+        public async Task<ActionResult<ExamenDto>> PostExamenConHijos(ExamenConComposicionDto dto)
+        {
+            var examen = new Examen
+            {
+                NombreExamen = dto.Examen.NombreExamen,
+                ValorReferencia = dto.Examen.ValorReferencia,
+                Unidad = dto.Examen.Unidad,
+                Precio = dto.Examen.Precio,
+                Anulado = false,
+                Estudio = dto.Examen.Estudio,
+                TipoMuestra = dto.Examen.TipoMuestra,
+                TiempoEntrega = dto.Examen.TiempoEntrega,
+                TipoExamen = dto.Examen.TipoExamen,
+                Tecnica = dto.Examen.Tecnica,
+                TituloExamen = dto.Examen.TituloExamen
+            };
 
-        return NoContent();
-    }
+            _context.Examen.Add(examen);
+            await _context.SaveChangesAsync();
 
-    private bool ExamenExists(int id)
-    {
-        return _context.Examen.Any(e => e.IdExamen == id);
+            // Guardar hijos
+            foreach (var idHijo in dto.IdExamenesHijos.Distinct())
+            {
+                var composicion = new ExamenComposicion
+                {
+                    IdExamenPadre = examen.IdExamen,
+                    IdExamenHijo = idHijo
+                };
+                _context.ExamenComposiciones.Add(composicion);
+            }
+
+            await _context.SaveChangesAsync();
+
+            dto.Examen.IdExamen = examen.IdExamen;
+            return CreatedAtAction(nameof(GetExamen), new { id = examen.IdExamen }, dto.Examen);
+        }
+
+
+        // PUT: api/examenes/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutExamen(int id, ExamenDto dto)
+        {
+            var examen = await _context.Examen.FindAsync(id);
+            if (examen == null)
+                return NotFound();
+
+            examen.NombreExamen = dto.NombreExamen;
+            examen.ValorReferencia = dto.ValorReferencia;
+            examen.Unidad = dto.Unidad;
+            examen.Precio = dto.Precio;
+            examen.Anulado = dto.Anulado;
+            examen.Estudio = dto.Estudio;
+            examen.TipoMuestra = dto.TipoMuestra;
+            examen.TiempoEntrega = dto.TiempoEntrega;
+            examen.TipoExamen = dto.TipoExamen;
+            examen.Tecnica = dto.Tecnica;
+            examen.TituloExamen = dto.TituloExamen;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // PUT: api/examenes/anular/5
+        [HttpPut("anular/{id}")]
+        public async Task<IActionResult> AnularExamen(int id)
+        {
+            var examen = await _context.Examen.FindAsync(id);
+            if (examen == null)
+                return NotFound();
+
+            examen.Anulado = true;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        private bool ExamenExists(int id)
+        {
+            return _context.Examen.Any(e => e.IdExamen == id);
+        }
     }
 }

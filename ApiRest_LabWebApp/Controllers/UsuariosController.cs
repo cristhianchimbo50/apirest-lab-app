@@ -57,14 +57,11 @@ namespace ApiRest_LabWebApp.Controllers
             {
                 Token = GenerarTokenJwt(usuario),
                 Nombre = usuario.Nombre,
-                CorreoUsuario = usuario.CorreoUsuario, // <- AÑADIR
+                CorreoUsuario = usuario.CorreoUsuario,
                 Rol = usuario.Rol,
-                EsContraseñaTemporal = usuario.EsContraseñaTemporal ?? true
-
+                EsContraseñaTemporal = usuario.EsContraseñaTemporal ?? true,
+                IdUsuario = usuario.IdUsuario
             });
-
-
-
         }
 
         private string GenerarTokenJwt(Usuario usuario)
@@ -72,7 +69,8 @@ namespace ApiRest_LabWebApp.Controllers
             var claims = new[]
             {
                 new Claim(ClaimTypes.Name, usuario.CorreoUsuario),
-                new Claim(ClaimTypes.Role, usuario.Rol)
+                new Claim(ClaimTypes.Role, usuario.Rol),
+                new Claim("idUsuario", usuario.IdUsuario.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));

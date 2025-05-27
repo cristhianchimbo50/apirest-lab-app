@@ -7,11 +7,9 @@ namespace ApiRest_LabWebApp.DTOs
         public string Token { get; set; }
         public string Nombre { get; set; }
         public string Rol { get; set; }
-        public string CorreoUsuario { get; set; } // ❗ Necesario si usas como ClaimTypes.Name
+        public string CorreoUsuario { get; set; }
         public bool EsContraseñaTemporal { get; set; }
+        public int IdUsuario { get; set; }
     }
-
-
-
 
 }

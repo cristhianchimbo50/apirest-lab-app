@@ -123,4 +123,93 @@ public class OrdenesController : ControllerBase
         };
     }
 
+    [HttpPost("completa")]
+    [Authorize]
+    public async Task<ActionResult> RegistrarOrdenCompleta(OrdenCompletaDto dto)
+    {
+        if (dto == null || dto.Orden == null || dto.IdsExamenes == null || !dto.IdsExamenes.Any())
+        {
+            return BadRequest("Datos incompletos para registrar la orden.");
+        }
+
+        var orden = dto.Orden;
+
+        //Calcular totales
+        var examenes = await _context.Examen
+            .Where(e => dto.IdsExamenes.Contains(e.IdExamen))
+            .ToListAsync();
+
+        decimal total = examenes.Sum(e => e.Precio ?? 0);
+        decimal pagado = dto.DineroEfectivo + dto.Transferencia;
+        decimal saldo = total - pagado;
+        string estado = saldo <= 0 ? "PAGADO" : "PENDIENTE";
+
+        orden.Total = total;
+        orden.TotalPagado = pagado;
+        orden.SaldoPendiente = saldo;
+        orden.EstadoPago = estado;
+        orden.FechaOrden = DateOnly.FromDateTime(DateTime.Today);
+        orden.Anulado = false;
+
+        _context.Ordens.Add(orden);
+        await _context.SaveChangesAsync();
+
+        //generar Número de Orden tipo ORD-00001
+        orden.NumeroOrden = $"ORD-{orden.IdOrden:D5}";
+        await _context.SaveChangesAsync();
+
+        //guardar detalle de orden
+        foreach (var idExamen in dto.IdsExamenes.Distinct())
+        {
+            var precio = examenes.FirstOrDefault(e => e.IdExamen == idExamen)?.Precio ?? 0;
+            _context.DetalleOrdens.Add(new DetalleOrden
+            {
+                IdOrden = orden.IdOrden,
+                IdExamen = idExamen,
+                Precio = precio
+            });
+        }
+
+        //Guardar pago
+        var pago = new Pago
+        {
+            IdOrden = orden.IdOrden,
+            FechaPago = DateTime.Now,
+            MontoPagado = pagado,
+            Observacion = dto.Observaciones,
+            Anulado = false,
+            IdUsuario = orden.IdUsuario
+        };
+
+        _context.Pagos.Add(pago);
+        await _context.SaveChangesAsync();
+
+        //Guardar detalle de pago
+        if (dto.DineroEfectivo > 0)
+        {
+            _context.DetallePagos.Add(new DetallePago
+            {
+                IdPago = pago.IdPago,
+                TipoPago = "EFECTIVO",
+                Monto = dto.DineroEfectivo,
+                IdUsuario = orden.IdUsuario
+            });
+        }
+
+        if (dto.Transferencia > 0)
+        {
+            _context.DetallePagos.Add(new DetallePago
+            {
+                IdPago = pago.IdPago,
+                TipoPago = "TRANSFERENCIA",
+                Monto = dto.Transferencia,
+                IdUsuario = orden.IdUsuario
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { orden.IdOrden, orden.NumeroOrden });
+    }
+
 }

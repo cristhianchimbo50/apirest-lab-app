@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -14,12 +15,21 @@ public class MedicosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Medico>>> GetMedicos()
+    public async Task<ActionResult<IEnumerable<MedicoDto>>> GetMedicos()
     {
-        return await _context.Medicos
-            .Include(m => m.IdUsuarioNavigation)
-            .ToListAsync();
+        var medicos = await _context.Medicos
+            .Select(m => new MedicoDto
+            {
+                IdMedico = m.IdMedico,
+                NombreMedico = m.NombreMedico,
+                Especialidad = m.Especialidad,
+                Telefono = m.Telefono,
+                Correo = m.Correo
+            }).ToListAsync();
+
+        return Ok(medicos);
     }
+
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Medico>> GetMedico(int id)
