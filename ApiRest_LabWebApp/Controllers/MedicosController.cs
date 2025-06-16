@@ -99,4 +99,49 @@ public class MedicosController : ControllerBase
     {
         return _context.Medicos.Any(e => e.IdMedico == id);
     }
+
+
+    [HttpGet("buscar")]
+    public async Task<ActionResult<IEnumerable<MedicoDto>>> Buscar(string criterio, string valor)
+    {
+        var query = _context.Medicos.AsQueryable();
+
+        valor = valor.ToLower();
+
+        query = criterio switch
+        {
+            "nombre" => query.Where(m => m.NombreMedico.ToLower().Contains(valor)),
+            "especialidad" => query.Where(m => m.Especialidad.ToLower().Contains(valor)),
+            "telefono" => query.Where(m => m.Telefono.Contains(valor)),
+            "correo" => query.Where(m => m.Correo.ToLower().Contains(valor)),
+            _ => query
+        };
+
+        var resultado = await query
+            .Select(m => new MedicoDto
+            {
+                IdMedico = m.IdMedico,
+                NombreMedico = m.NombreMedico,
+                Especialidad = m.Especialidad,
+                Telefono = m.Telefono,
+                Correo = m.Correo,
+                Anulado = m.Anulado
+            }).ToListAsync();
+
+        return Ok(resultado);
+    }
+
+    [HttpPut("anular/{id}")]
+    public async Task<IActionResult> AnularMedico(int id)
+    {
+        var medico = await _context.Medicos.FindAsync(id);
+        if (medico == null)
+            return NotFound();
+
+        medico.Anulado = true;
+        await _context.SaveChangesAsync();
+
+        return Ok();
+    }
+
 }

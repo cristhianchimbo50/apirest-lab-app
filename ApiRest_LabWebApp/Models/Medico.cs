@@ -15,7 +15,8 @@ public partial class Medico
 
     public string? Correo { get; set; }
 
-    public bool? Anulado { get; set; }
+    public bool Anulado { get; set; }
+
 
     public int? IdUsuario { get; set; }
 

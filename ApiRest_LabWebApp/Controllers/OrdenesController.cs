@@ -16,14 +16,28 @@ public class OrdenesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Orden>>> GetOrdenes()
+    public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     {
-        return await _context.Ordens
+        var ordenes = await _context.Ordens
             .Include(o => o.IdPacienteNavigation)
-            .Include(o => o.IdMedicoNavigation)
-            .Include(o => o.IdUsuarioNavigation)
+            .Select(o => new OrdenDto
+            {
+                IdOrden = o.IdOrden,
+                NumeroOrden = o.NumeroOrden,
+                CedulaPaciente = o.IdPacienteNavigation.CedulaPaciente,
+                NombrePaciente = o.IdPacienteNavigation.NombrePaciente,
+                FechaOrden = o.FechaOrden,
+                Total = o.Total ?? 0,
+                TotalPagado = o.TotalPagado ?? 0,
+                SaldoPendiente = o.SaldoPendiente ?? 0,
+                EstadoPago = o.EstadoPago,
+                Anulado = o.Anulado ?? false
+            })
             .ToListAsync();
+
+        return ordenes;
     }
+
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Orden>> GetOrden(int id)
@@ -211,5 +225,68 @@ public class OrdenesController : ControllerBase
 
         return Ok(new { orden.IdOrden, orden.NumeroOrden });
     }
+
+    [HttpGet("detalle/{id}")]
+    public async Task<ActionResult<OrdenDetalleDto>> ObtenerDetalleOrden(int id)
+    {
+        var orden = await _context.Ordens
+            .Include(o => o.IdPacienteNavigation)
+            .Include(o => o.DetalleOrdens!)
+                .ThenInclude(d => d.IdExamenNavigation)
+            .Include(o => o.DetalleOrdens!)
+                .ThenInclude(d => d.IdResultadoNavigation)
+            .FirstOrDefaultAsync(o => o.IdOrden == id);
+
+        if (orden == null)
+            return NotFound();
+
+        var dto = new OrdenDetalleDto
+        {
+            IdOrden = orden.IdOrden,
+            IdPaciente = orden.IdPaciente,
+            IdMedico = orden.IdMedico,
+            NombreMedico = orden.IdMedicoNavigation?.NombreMedico ?? "",
+            NumeroOrden = orden.NumeroOrden,
+            FechaOrden = orden.FechaOrden,
+            EstadoPago = orden.EstadoPago,
+            CedulaPaciente = orden.IdPacienteNavigation?.CedulaPaciente,
+            NombrePaciente = orden.IdPacienteNavigation?.NombrePaciente,
+            DireccionPaciente = orden.IdPacienteNavigation?.DireccionPaciente,
+            CorreoPaciente = orden.IdPacienteNavigation?.CorreoElectronicoPaciente,
+            TelefonoPaciente = orden.IdPacienteNavigation?.TelefonoPaciente,
+            Anulado = orden.Anulado,
+            TotalOrden = orden.Total ?? 0,
+            TotalPagado = orden.TotalPagado ?? 0,
+            SaldoPendiente = orden.SaldoPendiente ?? 0,
+            Examenes = orden.DetalleOrdens
+    .Where(d => d.IdResultadoNavigation == null || d.IdResultadoNavigation.Anulado == false)
+    .Select(d => new ExamenDetalleDto
+    {
+        IdExamen = d.IdExamen ?? 0,
+        NombreExamen = d.IdExamenNavigation?.NombreExamen,
+        NombreEstudio = d.IdExamenNavigation?.Estudio,
+        IdResultado = d.IdResultado,
+        NumeroResultado = d.IdResultadoNavigation?.NumeroResultado
+    }).ToList()
+
+
+        };
+
+
+        return dto;
+    }
+
+    [HttpPut("anular/{id}")]
+    public async Task<IActionResult> AnularOrden(int id)
+    {
+        var orden = await _context.Ordens.FindAsync(id);
+        if (orden == null) return NotFound();
+
+        orden.Anulado = true;
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
 
 }

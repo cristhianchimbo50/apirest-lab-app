@@ -131,7 +131,8 @@ namespace ApiRest_LabWebApp.Controllers
                     IdExamen = x.ExamenHijo!.IdExamen,
                     NombreExamen = x.ExamenHijo.NombreExamen,
                     Estudio = x.ExamenHijo.Estudio,
-                    // otros campos opcionales
+                    ValorReferencia = x.ExamenHijo.ValorReferencia,
+                    Unidad = x.ExamenHijo.Unidad
                 })
                 .ToListAsync();
 

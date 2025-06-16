@@ -14,7 +14,6 @@ public partial class DetalleResultado
     public decimal Valor { get; set; }
 
     public string? Unidad { get; set; }
-
     public string? Observacion { get; set; }
 
     public bool? Anulado { get; set; }

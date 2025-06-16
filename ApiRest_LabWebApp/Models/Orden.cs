@@ -9,11 +9,11 @@ public partial class Orden
 
     public string NumeroOrden { get; set; } = null!;
 
-    public int? IdPaciente { get; set; }
+    public int IdPaciente { get; set; }
 
     public DateOnly FechaOrden { get; set; }
 
-    public decimal Total { get; set; }
+    public decimal? Total { get; set; }
 
     public decimal? SaldoPendiente { get; set; }
 
