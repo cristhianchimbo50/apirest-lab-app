@@ -91,4 +91,24 @@ public class MovimientosReactivosController : ControllerBase
     {
         return _context.MovimientoReactivos.Any(e => e.IdMovimientoReactivo == id);
     }
+
+    [HttpPost("lote")]
+    public async Task<IActionResult> PostMovimientosReactivoLote(List<MovimientoReactivo> movimientos)
+    {
+        foreach (var movimiento in movimientos)
+        {
+            var reactivo = await _context.Reactivos.FirstOrDefaultAsync(r => r.IdReactivo == movimiento.IdReactivo);
+            if (reactivo == null) continue;
+
+            if (movimiento.TipoMovimiento == "INGRESO")
+                reactivo.CantidadDisponible += movimiento.Cantidad ?? 0;
+            else if (movimiento.TipoMovimiento == "EGRESO")
+                reactivo.CantidadDisponible -= movimiento.Cantidad ?? 0;
+
+            _context.MovimientoReactivos.Add(movimiento);
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok();
+    }
 }
