@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -36,15 +38,6 @@ public class PagosController : ControllerBase
         }
 
         return pago;
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<Pago>> PostPago(Pago pago)
-    {
-        _context.Pagos.Add(pago);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetPago), new { id = pago.IdPago }, pago);
     }
 
     [HttpPut("{id}")]
@@ -91,4 +84,95 @@ public class PagosController : ControllerBase
     {
         return _context.Pagos.Any(e => e.IdPago == id);
     }
+
+    [HttpGet("orden/{idOrden}")]
+    public async Task<ActionResult<IEnumerable<DetallePagoDto>>> GetPagosPorOrden(int idOrden)
+    {
+        var pagos = await _context.DetallePagos
+            .Include(dp => dp.IdPagoNavigation)
+            .Where(dp =>
+                dp.IdPagoNavigation != null &&
+                dp.IdPagoNavigation.IdOrden == idOrden &&
+                (dp.IdPagoNavigation.Anulado == null || dp.IdPagoNavigation.Anulado == false))
+            .Select(dp => new DetallePagoDto
+            {
+                FechaPago = dp.IdPagoNavigation.FechaPago,
+                TipoPago = dp.TipoPago,
+                Monto = dp.Monto
+            })
+            .ToListAsync();
+
+        return Ok(pagos);
+    }
+    
+    [HttpPost("registrar")]
+    [Authorize]
+    public async Task<IActionResult> RegistrarPago([FromBody] PagoDto dto)
+    {
+        var idUsuarioClaim = User.Claims.FirstOrDefault(c => c.Type.EndsWith("idUsuario"));
+        if (idUsuarioClaim == null)
+            return Unauthorized("No se pudo determinar el usuario autenticado.");
+
+        int idUsuario = int.Parse(idUsuarioClaim.Value);
+
+        if (dto.IdOrden == null)
+            return BadRequest("Falta el ID de la orden.");
+
+        var orden = await _context.Ordens.FindAsync(dto.IdOrden);
+        if (orden == null)
+            return NotFound("Orden no encontrada.");
+
+        var total = dto.DineroEfectivo + dto.Transferencia;
+
+        // Crear registro principal del pago
+        var pago = new Pago
+        {
+            IdOrden = dto.IdOrden,
+            FechaPago = DateTime.Now,
+            MontoPagado = total,
+            Observacion = dto.Observacion,
+            Anulado = false,
+            IdUsuario = idUsuario
+        };
+
+        _context.Pagos.Add(pago);
+        await _context.SaveChangesAsync(); // genera IdPago
+
+        // Crear detalles de pago
+        var detalles = new List<DetallePago>();
+
+        if (dto.DineroEfectivo > 0)
+        {
+            detalles.Add(new DetallePago
+            {
+                IdPago = pago.IdPago,
+                TipoPago = "EFECTIVO",
+                Monto = dto.DineroEfectivo,
+                IdUsuario = idUsuario
+            });
+        }
+
+        if (dto.Transferencia > 0)
+        {
+            detalles.Add(new DetallePago
+            {
+                IdPago = pago.IdPago,
+                TipoPago = "TRANSFERENCIA",
+                Monto = dto.Transferencia,
+                IdUsuario = idUsuario
+            });
+        }
+
+        _context.DetallePagos.AddRange(detalles);
+
+        // 🔁 ACTUALIZAR LA ORDEN
+        orden.TotalPagado = (orden.TotalPagado ?? 0) + total;
+        orden.SaldoPendiente = (orden.Total ?? 0) - orden.TotalPagado;
+        orden.EstadoPago = orden.SaldoPendiente <= 0 ? "PAGADO" : "PENDIENTE";
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Pago y detalle registrados, orden actualizada correctamente." });
+    }
+
 }

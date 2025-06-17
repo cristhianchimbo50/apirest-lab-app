@@ -16,27 +16,28 @@ public class OrdenesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
-    {
-        var ordenes = await _context.Ordens
-            .Include(o => o.IdPacienteNavigation)
-            .Select(o => new OrdenDto
-            {
-                IdOrden = o.IdOrden,
-                NumeroOrden = o.NumeroOrden,
-                CedulaPaciente = o.IdPacienteNavigation.CedulaPaciente,
-                NombrePaciente = o.IdPacienteNavigation.NombrePaciente,
-                FechaOrden = o.FechaOrden,
-                Total = o.Total ?? 0,
-                TotalPagado = o.TotalPagado ?? 0,
-                SaldoPendiente = o.SaldoPendiente ?? 0,
-                EstadoPago = o.EstadoPago,
-                Anulado = o.Anulado ?? false
-            })
-            .ToListAsync();
+public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
+{
+    var ordenes = await _context.Ordens
+        .Include(o => o.IdPacienteNavigation)
+        .Select(o => new OrdenDto
+        {
+            IdOrden = o.IdOrden,
+            NumeroOrden = o.NumeroOrden,
+            CedulaPaciente = o.IdPacienteNavigation.CedulaPaciente,
+            NombrePaciente = o.IdPacienteNavigation.NombrePaciente,
+            FechaOrden = o.FechaOrden,
+            Total = o.Total ?? 0,
+            TotalPagado = o.TotalPagado ?? 0,
+            SaldoPendiente = o.SaldoPendiente ?? 0,
+            EstadoPago = o.EstadoPago,
+            Anulado = o.Anulado ?? false
+        })
+        .ToListAsync();
 
-        return ordenes;
-    }
+    return ordenes;
+}
+
 
 
     [HttpGet("{id}")]

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -32,6 +33,42 @@ public class ReactivosController : ControllerBase
         return reactivo;
     }
 
+    [HttpGet("filtrar")]
+    public async Task<ActionResult<IEnumerable<ReactivoDto>>> FiltrarReactivos(
+        [FromQuery] string? nombre,
+        [FromQuery] string? fabricante,
+        [FromQuery] string? unidad)
+    {
+        var query = _context.Reactivos.AsQueryable();
+
+        query = query.Where(r => !(r.Anulado ?? false)); // excluir anulados
+
+        if (!string.IsNullOrWhiteSpace(nombre))
+            query = query.Where(r => r.NombreReactivo.Contains(nombre));
+
+        if (!string.IsNullOrWhiteSpace(fabricante))
+            query = query.Where(r => r.Fabricante.Contains(fabricante));
+
+        if (!string.IsNullOrWhiteSpace(unidad))
+            query = query.Where(r => r.Unidad.Contains(unidad));
+
+        var resultado = await query
+            .OrderBy(r => r.NombreReactivo)
+            .Select(r => new ReactivoDto
+            {
+                IdReactivo = r.IdReactivo,
+                NombreReactivo = r.NombreReactivo,
+                Fabricante = r.Fabricante,
+                Unidad = r.Unidad,
+                CantidadDisponible = r.CantidadDisponible ?? 0,
+                Anulado = r.Anulado
+            })
+            .ToListAsync();
+
+        return Ok(resultado);
+    }
+
+
     [HttpPost]
     public async Task<ActionResult<Reactivo>> PostReactivo(Reactivo reactivo)
     {
@@ -42,29 +79,20 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> PutReactivo(int id, Reactivo reactivo)
-    {
-        if (id != reactivo.IdReactivo)
-        {
-            return BadRequest();
-        }
+    public async Task<IActionResult> PutReactivo(int id, [FromBody] ReactivoDto dto)
+{
+    var existente = await _context.Reactivos.FindAsync(id);
+    if (existente == null)
+        return NotFound();
 
-        _context.Entry(reactivo).State = EntityState.Modified;
+    existente.NombreReactivo = dto.NombreReactivo.Trim().ToUpper();
+    existente.Fabricante = dto.Fabricante.Trim().ToUpper();
+    existente.Unidad = dto.Unidad.Trim();
 
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!ReactivoExists(id))
-                return NotFound();
-            else
-                throw;
-        }
+    await _context.SaveChangesAsync();
 
-        return NoContent();
-    }
+    return Ok(new { mensaje = "Reactivo actualizado correctamente" });
+}
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteReactivo(int id)
@@ -85,4 +113,44 @@ public class ReactivosController : ControllerBase
     {
         return _context.Reactivos.Any(e => e.IdReactivo == id);
     }
+
+    [HttpPost("registrar")]
+    public async Task<IActionResult> RegistrarReactivo([FromBody] ReactivoDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.NombreReactivo) ||
+            string.IsNullOrWhiteSpace(dto.Fabricante) ||
+            string.IsNullOrWhiteSpace(dto.Unidad))
+        {
+            return BadRequest("Todos los campos son obligatorios.");
+        }
+
+        var nuevo = new Reactivo
+        {
+            NombreReactivo = dto.NombreReactivo.Trim().ToUpper(),
+            Fabricante = dto.Fabricante.Trim().ToUpper(),
+            Unidad = dto.Unidad.Trim(),
+            CantidadDisponible = 0,
+            Anulado = false
+        };
+
+        _context.Reactivos.Add(nuevo);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Reactivo registrado", nuevo.IdReactivo });
+    }
+    
+    [HttpPut("anular/{id}")]
+    public async Task<IActionResult> AnularReactivo(int id)
+    {
+        var reactivo = await _context.Reactivos.FindAsync(id);
+        if (reactivo == null)
+            return NotFound();
+
+        reactivo.Anulado = true;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Reactivo anulado correctamente." });
+    }
+
+
 }

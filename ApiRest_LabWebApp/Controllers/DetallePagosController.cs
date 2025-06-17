@@ -9,7 +9,7 @@ public class DetallePagosController : ControllerBase
     private readonly BdLabContext _context;
 
     public DetallePagosController(BdLabContext context)
-    {
+    {       
         _context = context;
     }
 
