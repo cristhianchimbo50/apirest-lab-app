@@ -142,7 +142,6 @@ public class ResultadosController : ControllerBase
         return dto;
     }
 
-
     [HttpPost("guardar-completo")]
     public async Task<IActionResult> GuardarResultadoCompleto([FromBody] ResultadoGuardarDto dto)
     {
@@ -169,7 +168,7 @@ public class ResultadosController : ControllerBase
             nuevoResultado.NumeroResultado = $"RES-{nuevoResultado.IdResultado:D5}";
             await _context.SaveChangesAsync();
 
-            // 3. Crear detalles
+            // 3. Crear detalles de resultado
             foreach (var ex in dto.Examenes)
             {
                 var detalle = new DetalleResultado
@@ -184,22 +183,19 @@ public class ResultadosController : ControllerBase
                 _context.DetalleResultados.Add(detalle);
             }
 
-            // 4. Obtener IdExamenPadre (opcionalmente puedes pasarlo desde el DTO)
-            var examenPadreId = await _context.ExamenComposiciones
-                .Where(ec => dto.Examenes.Select(e => e.IdExamen).Contains(ec.IdExamenHijo))
-                .Select(ec => ec.IdExamenPadre)
-                .FirstOrDefaultAsync();
+            // 4. Actualizar id_resultado en detalle_orden para todos los exámenes involucrados
+            var idsExamenes = dto.Examenes.Select(e => e.IdExamen).ToList();
 
-            // 5. Guardar id_resultado en detalle_orden
-            var detalleOrden = await _context.DetalleOrdens
-                .FirstOrDefaultAsync(d => d.IdOrden == dto.IdOrden && d.IdExamen == examenPadreId);
+            var detallesOrden = await _context.DetalleOrdens
+                .Where(d => d.IdOrden == dto.IdOrden && d.IdExamen.HasValue && idsExamenes.Contains(d.IdExamen.Value))
+                .ToListAsync();
 
-            if (detalleOrden != null)
+            foreach (var det in detallesOrden)
             {
-                detalleOrden.IdResultado = nuevoResultado.IdResultado;
-                await _context.SaveChangesAsync();
+                det.IdResultado = nuevoResultado.IdResultado;
             }
 
+            await _context.SaveChangesAsync();
             await trans.CommitAsync();
 
             return Ok(new
@@ -221,17 +217,38 @@ public class ResultadosController : ControllerBase
         }
     }
 
-    [HttpPut("anular/{id}")]
+    [HttpPut("anular/{id}")] 
     public async Task<IActionResult> AnularResultado(int id)
     {
-        var resultado = await _context.Resultados.FindAsync(id);
+        var resultado = await _context.Resultados
+            .Include(r => r.DetalleResultados)
+            .FirstOrDefaultAsync(r => r.IdResultado == id);
+
         if (resultado == null) return NotFound();
 
         resultado.Anulado = true;
-        await _context.SaveChangesAsync();
 
+        // Anular todos los detalles del resultado
+        foreach (var detalle in resultado.DetalleResultados)
+        {
+            detalle.Anulado = true;
+        }
+
+        // Quitar referencia en DetalleOrden
+        var detallesOrden = await _context.DetalleOrdens
+            .Where(d => d.IdResultado == id)
+            .ToListAsync();
+
+        foreach (var d in detallesOrden)
+        {
+            d.IdResultado = null;
+        }
+
+        await _context.SaveChangesAsync();
         return NoContent();
     }
+
+
 
 
 }

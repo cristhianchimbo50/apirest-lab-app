@@ -23,3 +23,4 @@ public partial class ExamenReactivo
 
     public virtual Usuario? IdUsuarioNavigation { get; set; }
 }
+

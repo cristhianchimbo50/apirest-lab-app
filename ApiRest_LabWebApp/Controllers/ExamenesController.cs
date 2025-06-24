@@ -179,5 +179,50 @@ namespace ApiRest_LabWebApp.Controllers
         {
             return _context.Examen.Any(e => e.IdExamen == id);
         }
+
+        [HttpGet("con-reactivos/{id}")]
+        public async Task<ActionResult<ExamenConReactivosDto>> GetExamenConReactivos(int id)
+        {
+            var examen = await _context.Examen
+                .FirstOrDefaultAsync(e => e.IdExamen == id && e.Anulado != true);
+
+            if (examen == null)
+                return NotFound();
+
+            var dto = new ExamenDto
+            {
+                IdExamen = examen.IdExamen,
+                NombreExamen = examen.NombreExamen,
+                ValorReferencia = examen.ValorReferencia,
+                Unidad = examen.Unidad,
+                Precio = examen.Precio,
+                Anulado = examen.Anulado,
+                Estudio = examen.Estudio,
+                TipoMuestra = examen.TipoMuestra,
+                TiempoEntrega = examen.TiempoEntrega,
+                TipoExamen = examen.TipoExamen,
+                Tecnica = examen.Tecnica,
+                TituloExamen = examen.TituloExamen
+            };
+
+            var reactivos = await _context.ExamenReactivos
+                .Where(r => r.IdExamen == id)
+                .Include(r => r.IdReactivoNavigation)
+                .Select(r => new ExamenReactivoDto
+                {
+                    IdReactivo = r.IdReactivo ?? 0,
+                    NombreReactivo = r.IdReactivoNavigation!.NombreReactivo,
+                    Unidad = r.Unidad ?? r.IdReactivoNavigation.Unidad ?? "",
+                    CantidadUsada = r.CantidadUsada ?? 0
+                }).ToListAsync();
+
+            return Ok(new ExamenConReactivosDto
+            {
+                Examen = dto,
+                Reactivos = reactivos
+            });
+        }
+
+
     }
 }

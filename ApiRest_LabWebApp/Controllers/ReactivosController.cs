@@ -80,19 +80,19 @@ public class ReactivosController : ControllerBase
 
     [HttpPut("{id}")]
     public async Task<IActionResult> PutReactivo(int id, [FromBody] ReactivoDto dto)
-{
-    var existente = await _context.Reactivos.FindAsync(id);
-    if (existente == null)
-        return NotFound();
+    {
+        var existente = await _context.Reactivos.FindAsync(id);
+        if (existente == null)
+            return NotFound();
 
-    existente.NombreReactivo = dto.NombreReactivo.Trim().ToUpper();
-    existente.Fabricante = dto.Fabricante.Trim().ToUpper();
-    existente.Unidad = dto.Unidad.Trim();
+        existente.NombreReactivo = dto.NombreReactivo.Trim().ToUpper();
+        existente.Fabricante = dto.Fabricante.Trim().ToUpper();
+        existente.Unidad = dto.Unidad.Trim();
 
-    await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
-    return Ok(new { mensaje = "Reactivo actualizado correctamente" });
-}
+        return Ok(new { mensaje = "Reactivo actualizado correctamente" });
+    }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteReactivo(int id)
@@ -138,7 +138,7 @@ public class ReactivosController : ControllerBase
 
         return Ok(new { mensaje = "Reactivo registrado", nuevo.IdReactivo });
     }
-    
+
     [HttpPut("anular/{id}")]
     public async Task<IActionResult> AnularReactivo(int id)
     {
@@ -150,6 +150,70 @@ public class ReactivosController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(new { mensaje = "Reactivo anulado correctamente." });
+    }
+    
+    [HttpPost("examenes-reactivos")]
+    public async Task<IActionResult> GuardarReactivos([FromBody] List<ExamenReactivoDto> lista)
+    {
+        if (lista == null || !lista.Any())
+            return BadRequest("Lista vacía.");
+
+        var idExamen = lista.First().IdExamen;
+
+        var existentes = await _context.ExamenReactivos
+            .Where(er => er.IdExamen == idExamen)
+            .ToListAsync();
+
+        _context.ExamenReactivos.RemoveRange(existentes);
+
+        var nuevas = lista.Select(x => new ExamenReactivo
+        {
+            IdExamen = x.IdExamen,
+            IdReactivo = x.IdReactivo,
+            CantidadUsada = x.CantidadUsada,
+            Unidad = x.Unidad
+        });
+
+        _context.ExamenReactivos.AddRange(nuevas);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = "Asociaciones guardadas correctamente." });
+    }
+
+    [HttpGet("por-examen/{idExamen}")]
+    public async Task<ActionResult<IEnumerable<ExamenReactivoDto>>> ObtenerPorExamen(int idExamen)
+    {
+        var resultado = await _context.ExamenReactivos
+            .Where(er => er.IdExamen == idExamen)
+            .Include(er => er.IdReactivoNavigation)
+            .Select(er => new ExamenReactivoDto
+            {
+                IdReactivo = er.IdReactivo ?? 0, 
+                IdExamen = er.IdExamen ?? 0,
+                CantidadUsada = er.CantidadUsada ?? 0m,
+                NombreReactivo = er.IdReactivoNavigation!.NombreReactivo,
+                Unidad = er.IdReactivoNavigation.Unidad
+            }).ToListAsync();
+
+        return Ok(resultado);
+    }
+
+    [HttpGet("asociaciones")]
+    public async Task<ActionResult<IEnumerable<AsociacionReactivoDto>>> ObtenerAsociaciones()
+    {
+        var resultado = await _context.ExamenReactivos
+            .Where(x => x.IdExamenNavigation != null && x.IdReactivoNavigation != null)
+            .Select(x => new AsociacionReactivoDto
+            {
+                NombreExamen = x.IdExamenNavigation.NombreExamen,
+                NombreReactivo = x.IdReactivoNavigation.NombreReactivo,
+                CantidadUsada = x.CantidadUsada ?? 0,
+                Unidad = x.Unidad ?? x.IdReactivoNavigation.Unidad,
+                IdExamen = x.IdExamen ?? 0,
+            })
+            .ToListAsync();
+
+        return Ok(resultado);
     }
 
 

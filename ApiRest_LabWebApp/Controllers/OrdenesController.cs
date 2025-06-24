@@ -46,8 +46,13 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
         var orden = await _context.Ordens
             .Include(o => o.IdPacienteNavigation)
             .Include(o => o.IdMedicoNavigation)
-            .Include(o => o.IdUsuarioNavigation)
+            .Include(o => o.DetalleOrdens!)
+                .ThenInclude(d => d.IdExamenNavigation)
+            .Include(o => o.DetalleOrdens!)
+                .ThenInclude(d => d.IdResultadoNavigation)
             .FirstOrDefaultAsync(o => o.IdOrden == id);
+
+
 
         if (orden == null)
         {
@@ -232,11 +237,13 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     {
         var orden = await _context.Ordens
             .Include(o => o.IdPacienteNavigation)
+            .Include(o => o.IdMedicoNavigation)
             .Include(o => o.DetalleOrdens!)
                 .ThenInclude(d => d.IdExamenNavigation)
             .Include(o => o.DetalleOrdens!)
                 .ThenInclude(d => d.IdResultadoNavigation)
             .FirstOrDefaultAsync(o => o.IdOrden == id);
+
 
         if (orden == null)
             return NotFound();
@@ -280,14 +287,39 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     [HttpPut("anular/{id}")]
     public async Task<IActionResult> AnularOrden(int id)
     {
-        var orden = await _context.Ordens.FindAsync(id);
+        var orden = await _context.Ordens
+            .Include(o => o.DetalleOrdens!)
+                .ThenInclude(d => d.IdResultadoNavigation)
+                    .ThenInclude(r => r.DetalleResultados)
+            .FirstOrDefaultAsync(o => o.IdOrden == id);
+
         if (orden == null) return NotFound();
 
         orden.Anulado = true;
-        await _context.SaveChangesAsync();
 
+        // Anular resultados asociados
+        var resultados = orden.DetalleOrdens
+            .Where(d => d.IdResultadoNavigation != null)
+            .Select(d => d.IdResultadoNavigation!)
+            .Distinct()
+            .ToList();
+
+        foreach (var resultado in resultados)
+        {
+            resultado.Anulado = true;
+
+            // Anular cada detalle de resultado
+            foreach (var detalle in resultado.DetalleResultados)
+            {
+                detalle.Anulado = true;
+            }
+        }
+
+        await _context.SaveChangesAsync();
         return NoContent();
     }
+
+
 
 
 }
