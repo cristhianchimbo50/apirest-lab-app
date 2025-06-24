@@ -11,5 +11,9 @@ public partial class DetalleConvenio
 
     public decimal Subtotal { get; set; }
 
+    public int IdOrden { get; set; }
+
+    public virtual Orden Orden { get; set; } = null!;
+
     public virtual Convenio? IdConvenioNavigation { get; set; }
 }

@@ -84,6 +84,7 @@ public partial class BdLabContext : DbContext
 
             entity.Property(e => e.IdDetalleConvenio).HasColumnName("id_detalle_convenio");
             entity.Property(e => e.IdConvenio).HasColumnName("id_convenio");
+            entity.Property(e => e.IdOrden).HasColumnName("id_orden");
             entity.Property(e => e.Subtotal)
                 .HasColumnType("decimal(10, 2)")
                 .HasColumnName("subtotal");
@@ -92,7 +93,14 @@ public partial class BdLabContext : DbContext
                 .HasForeignKey(d => d.IdConvenio)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK__detalle_c__id_co__5EBF139D");
+
+            entity.HasOne(d => d.Orden)
+                .WithMany(p => p.DetalleConvenios)
+                .HasForeignKey(d => d.IdOrden)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_detalle_convenio_orden");
         });
+
 
         modelBuilder.Entity<DetalleOrden>(entity =>
         {

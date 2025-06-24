@@ -32,4 +32,5 @@ public partial class Paciente
     public virtual ICollection<Orden> Ordens { get; set; } = new List<Orden>();
 
     public virtual ICollection<Resultado> Resultados { get; set; } = new List<Resultado>();
+    public string Nombres { get; internal set; }
 }

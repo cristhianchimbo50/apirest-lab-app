@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -14,46 +15,127 @@ public class ConveniosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Convenio>>> GetConvenios()
+    public async Task<ActionResult<IEnumerable<ConvenioDto>>> GetConvenios()
     {
-        return await _context.Convenios
+        var convenios = await _context.Convenios
             .Include(c => c.IdMedicoNavigation)
             .Include(c => c.IdUsuarioNavigation)
+            .Select(c => new ConvenioDto
+            {
+                IdConvenio = c.IdConvenio,
+                FechaConvenio = c.FechaConvenio,
+                MontoTotal = c.MontoTotal,
+                PorcentajeComision = c.PorcentajeComision,
+                NombreMedico = c.IdMedicoNavigation.NombreMedico,
+                Anulado = c.Anulado ?? false
+            })
             .ToListAsync();
+
+        return Ok(convenios);
     }
 
+
+
     [HttpGet("{id}")]
-    public async Task<ActionResult<Convenio>> GetConvenio(int id)
+    public async Task<ActionResult<ConvenioDetalleDto>> GetConvenio(int id)
     {
         var convenio = await _context.Convenios
             .Include(c => c.IdMedicoNavigation)
             .Include(c => c.IdUsuarioNavigation)
+            .Include(c => c.DetalleConvenios)
+                .ThenInclude(dc => dc.Orden)
+                    .ThenInclude(o => o.IdPacienteNavigation)
             .FirstOrDefaultAsync(c => c.IdConvenio == id);
 
         if (convenio == null)
-        {
             return NotFound();
-        }
 
-        return convenio;
+        var dto = new ConvenioDetalleDto
+        {
+            IdConvenio = convenio.IdConvenio,
+            FechaConvenio = convenio.FechaConvenio,
+            MontoTotal = convenio.MontoTotal,
+            PorcentajeComision = convenio.PorcentajeComision,
+            NombreMedico = convenio.IdMedicoNavigation?.NombreMedico ?? "",
+            NombreUsuario = convenio.IdUsuarioNavigation?.Nombre ?? "",
+            Ordenes = convenio.DetalleConvenios.Select(dc => new OrdenConvenioDto
+            {
+                IdOrden = dc.Orden.IdOrden,
+                NumeroOrden = dc.Orden.NumeroOrden,
+                Paciente = dc.Orden.IdPacienteNavigation?.NombrePaciente ?? "",
+                Total = dc.Orden.Total ?? 0m,
+                EstadoPago = dc.Orden.EstadoPago, FechaOrden = dc.Orden.FechaOrden
+            }).ToList()
+        };
+
+        return Ok(dto);
     }
 
-    [HttpPost]
-    public async Task<ActionResult<Convenio>> PostConvenio(Convenio convenio)
+
+    [HttpGet("ordenes-disponibles/{idMedico}")]
+    public async Task<IActionResult> ObtenerOrdenesPorMedico(int idMedico)
     {
+        var ordenes = await _context.Ordens
+            .Include(o => o.IdPacienteNavigation)
+            .Where(o => o.IdMedico == idMedico && o.Anulado == false && o.LiquidadoConvenio == false)
+            .Select(o => new
+            {
+                o.IdOrden,
+                o.NumeroOrden,
+                Paciente = o.IdPacienteNavigation.NombrePaciente,
+                o.Total,
+                o.EstadoPago
+            })
+            .ToListAsync();
+
+        return Ok(ordenes);
+    }
+
+    [HttpPost("registrar-convenio")]
+    public async Task<IActionResult> RegistrarConvenio([FromBody] ConvenioRegistrarDto dto)
+    {
+        if (dto == null || dto.Ordenes == null || !dto.Ordenes.Any())
+            return BadRequest("Datos de convenio incompletos.");
+
+        var convenio = new Convenio
+        {
+            IdMedico = dto.IdMedico,
+            IdUsuario = dto.IdUsuario,
+            FechaConvenio = DateOnly.FromDateTime(DateTime.Now),
+            MontoTotal = dto.Ordenes.Sum(o => o.Total),
+            PorcentajeComision = dto.Comision,
+            Anulado = false
+        };
+
         _context.Convenios.Add(convenio);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetConvenio), new { id = convenio.IdConvenio }, convenio);
+        foreach (var orden in dto.Ordenes)
+        {
+            _context.DetalleConvenios.Add(new DetalleConvenio
+            {
+                IdConvenio = convenio.IdConvenio,
+                IdOrden = orden.IdOrden,
+                Subtotal = orden.Total
+            });
+
+            var ordenDb = await _context.Ordens.FindAsync(orden.IdOrden);
+            if (ordenDb != null)
+            {
+                ordenDb.LiquidadoConvenio = true;
+                _context.Ordens.Update(ordenDb);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { mensaje = "Convenio registrado correctamente." });
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> PutConvenio(int id, Convenio convenio)
     {
         if (id != convenio.IdConvenio)
-        {
             return BadRequest();
-        }
 
         _context.Entry(convenio).State = EntityState.Modified;
 
@@ -77,11 +159,10 @@ public class ConveniosController : ControllerBase
     {
         var convenio = await _context.Convenios.FindAsync(id);
         if (convenio == null)
-        {
             return NotFound();
-        }
 
-        _context.Convenios.Remove(convenio);
+        convenio.Anulado = true;
+        _context.Convenios.Update(convenio);
         await _context.SaveChangesAsync();
 
         return NoContent();

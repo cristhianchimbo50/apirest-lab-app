@@ -149,7 +149,7 @@ public class ResultadosController : ControllerBase
 
         try
         {
-            // 1. Crear resultado con un número temporal (NO NULL)
+            // 1. Crear resultado
             var nuevoResultado = new Resultado
             {
                 IdPaciente = dto.IdPaciente,
@@ -164,11 +164,10 @@ public class ResultadosController : ControllerBase
             _context.Resultados.Add(nuevoResultado);
             await _context.SaveChangesAsync();
 
-            // 2. Asignar el número final con ID autogenerado
             nuevoResultado.NumeroResultado = $"RES-{nuevoResultado.IdResultado:D5}";
             await _context.SaveChangesAsync();
 
-            // 3. Crear detalles de resultado
+            // 2. Crear detalles
             foreach (var ex in dto.Examenes)
             {
                 var detalle = new DetalleResultado
@@ -183,9 +182,8 @@ public class ResultadosController : ControllerBase
                 _context.DetalleResultados.Add(detalle);
             }
 
-            // 4. Actualizar id_resultado en detalle_orden para todos los exámenes involucrados
+            // 3. Actualizar detalle_orden
             var idsExamenes = dto.Examenes.Select(e => e.IdExamen).ToList();
-
             var detallesOrden = await _context.DetalleOrdens
                 .Where(d => d.IdOrden == dto.IdOrden && d.IdExamen.HasValue && idsExamenes.Contains(d.IdExamen.Value))
                 .ToListAsync();
@@ -193,6 +191,44 @@ public class ResultadosController : ControllerBase
             foreach (var det in detallesOrden)
             {
                 det.IdResultado = nuevoResultado.IdResultado;
+            }
+
+            // 4. Descontar reactivos y registrar movimiento
+            foreach (var ex in dto.Examenes)
+            {
+                var asociaciones = await _context.ExamenReactivos
+                    .Where(er => er.IdExamen == ex.IdExamen)
+                    .ToListAsync();
+
+                foreach (var ar in asociaciones)
+                {
+                    var reactivo = await _context.Reactivos.FindAsync(ar.IdReactivo);
+                    if (reactivo == null) continue;
+
+                    // Validar stock suficiente
+                    if (reactivo.CantidadDisponible < ar.CantidadUsada)
+                    {
+                        await trans.RollbackAsync();
+                        return BadRequest(new
+                        {
+                            mensaje = $"Stock insuficiente para el reactivo '{reactivo.NombreReactivo}'. Disponible: {reactivo.CantidadDisponible}, requerido: {ar.CantidadUsada}"
+                        });
+                    }
+
+                    // Descontar stock
+                    reactivo.CantidadDisponible -= ar.CantidadUsada;
+
+                    // Registrar movimiento
+                    _context.MovimientoReactivos.Add(new MovimientoReactivo
+                    {
+                        IdReactivo = ar.IdReactivo,
+                        TipoMovimiento = "EGRESO",
+                        Cantidad = ar.CantidadUsada,
+                        FechaMovimiento = DateTime.Now,
+                        IdOrden = dto.IdOrden,
+                        Observacion = $"Consumo por resultado de examen ID {ex.IdExamen} - Resultado #{nuevoResultado.NumeroResultado}"
+                    });
+                }
             }
 
             await _context.SaveChangesAsync();

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -111,4 +112,42 @@ public class MovimientosReactivosController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok();
     }
+
+   [HttpGet("filtrar")]
+    public async Task<ActionResult<IEnumerable<MovimientoReactivoView>>> FiltrarMovimientos(
+        [FromQuery] DateTime? fechaInicio,
+        [FromQuery] DateTime? fechaFin,
+        [FromQuery] string? tipoMovimiento)
+    {
+        var query = _context.MovimientoReactivos
+            .Include(m => m.IdReactivoNavigation)
+            .Include(m => m.IdOrdenNavigation)
+            .AsQueryable();
+
+        if (fechaInicio.HasValue)
+            query = query.Where(m => m.FechaMovimiento >= fechaInicio.Value.Date);
+
+        if (fechaFin.HasValue)
+            query = query.Where(m => m.FechaMovimiento <= fechaFin.Value.Date.AddDays(1).AddTicks(-1));
+
+        if (!string.IsNullOrEmpty(tipoMovimiento))
+            query = query.Where(m => m.TipoMovimiento == tipoMovimiento);
+
+        var lista = await query
+            .OrderByDescending(m => m.FechaMovimiento)
+            .Select(m => new MovimientoReactivoView
+            {
+                Reactivo = m.IdReactivoNavigation != null ? m.IdReactivoNavigation.NombreReactivo : "(No asignado)",
+                TipoMovimiento = m.TipoMovimiento ?? "",
+                Cantidad = m.Cantidad ?? 0,
+                FechaMovimiento = m.FechaMovimiento,
+                NumeroOrden = m.IdOrdenNavigation != null ? m.IdOrdenNavigation.NumeroOrden : "",
+                Observacion = m.Observacion ?? ""
+            })
+            .ToListAsync();
+
+        return lista;
+    }
+
+
 }

@@ -30,6 +30,7 @@ public partial class Orden
     public string? Observacion { get; set; }
 
     public int? IdUsuario { get; set; }
+    public virtual ICollection<DetalleConvenio> DetalleConvenios { get; set; } = new List<DetalleConvenio>();
 
     public virtual ICollection<DetalleOrden> DetalleOrdens { get; set; } = new List<DetalleOrden>();
 
