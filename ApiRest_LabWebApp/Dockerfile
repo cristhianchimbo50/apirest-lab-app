@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copiar solo el .csproj y restaurar dependencias primero
-COPY ["ApiRest_LabWebApp.csproj", "./"]
+COPY ["ApiRest_LabWebApp/ApiRest_LabWebApp.csproj", "./"]
 RUN dotnet restore "ApiRest_LabWebApp.csproj"
 
 # Copiar todo y compilar
