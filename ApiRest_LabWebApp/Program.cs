@@ -4,49 +4,26 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
-using System.Text.Json;
 using ApiRest_LabWebApp.Services;
 using ApiRest_LabWebApp.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
-
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-builder.Services.AddDbContext<BdLabContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-
-builder.Services.AddCors(options =>
+builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-    options.AddPolicy("PermitirBlazor", policy =>
-    {
-        policy.WithOrigins("https://localhost:7230")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
+    serverOptions.ListenAnyIP(80); // ← Forzar escucha HTTP
 });
 
-//builder.Services.AddControllers().AddJsonOptions(options =>
-//{
-//    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-//    options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
-//    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-//});
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
+// Servicios
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "API REST", Version = "v1" });
 
-    // 🔐 Configurar el esquema JWT
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -73,9 +50,23 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddDbContext<BdLabContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// CORS - Temporalmente abierto para Render
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("PermitirBlazor", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+        // En producción: usar policy.WithOrigins("https://mi-blazor.onrender.com")
+    });
+});
+
+// JWT
 var jwtKey = builder.Configuration["Jwt:Key"];
-
 if (string.IsNullOrEmpty(jwtKey))
     throw new InvalidOperationException("No se encontró la clave JWT en appsettings.json");
 
@@ -91,7 +82,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-
         };
 
         options.Events = new JwtBearerEvents
@@ -109,24 +99,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-Console.WriteLine($"JWT Issuer configurado: {builder.Configuration["Jwt:Issuer"]}");
-Console.WriteLine($"JWT Audience configurado: {builder.Configuration["Jwt:Audience"]}");
-
 builder.Services.AddAuthorization();
+
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.Configure<EmailSettings>(
-    builder.Configuration.GetSection("Email"));
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 
 var app = builder.Build();
 
+// Middleware
 app.UseCors("PermitirBlazor");
 app.UseHttpsRedirection();
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+
+// Swagger habilitado SIEMPRE (útil en Render)
+app.UseSwagger();
+app.UseSwaggerUI();
+
 app.Use(async (context, next) =>
 {
     Console.WriteLine("Headers recibidos:");
@@ -137,10 +124,9 @@ app.Use(async (context, next) =>
     await next();
 });
 
-
 app.UseAuthentication();
 app.UseAuthorization();
 
-
 app.MapControllers();
+
 app.Run();

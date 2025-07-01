@@ -1,18 +1,24 @@
-# Imagen base de ASP.NET Core para producción
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
-EXPOSE 80
-
-# Imagen base para compilación
+# Etapa 1: build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY . .
+
+# Copiar solo el .csproj y restaurar dependencias primero
+COPY ["ApiRest_LabWebApp.csproj", "./"]
 RUN dotnet restore "ApiRest_LabWebApp.csproj"
-RUN dotnet build "ApiRest_LabWebApp.csproj" -c Release -o /app/build
+
+# Copiar todo y compilar
+COPY . .
 RUN dotnet publish "ApiRest_LabWebApp.csproj" -c Release -o /app/publish
 
-# Publicación final
-FROM base AS final
+# Etapa 2: runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
+
+# Copiar archivos publicados
 COPY --from=build /app/publish .
+
+# Exponer el puerto
+EXPOSE 80
+
+# Comando de arranque
 ENTRYPOINT ["dotnet", "ApiRest_LabWebApp.dll"]
