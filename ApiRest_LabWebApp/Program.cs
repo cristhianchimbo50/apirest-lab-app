@@ -9,22 +9,14 @@ using ApiRest_LabWebApp.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Forzar escucha en puerto 80 (útil para Docker/Render)
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ListenAnyIP(80);
-});
+// Cargar configuración
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
-// Configuración (appsettings.json)
-builder.Configuration
-    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables();
-
-// --- Servicios ---
+// Servicios
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger (visible siempre, útil para Render)
+// Swagger + JWT
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "API REST", Version = "v1" });
@@ -55,11 +47,11 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Base de datos
+// DB
 builder.Services.AddDbContext<BdLabContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// CORS (permitir todo durante pruebas)
+// CORS (libre por ahora para Render)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PermitirBlazor", policy =>
@@ -67,19 +59,17 @@ builder.Services.AddCors(options =>
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
               .AllowAnyMethod();
-        // En producción: .WithOrigins("https://mi-app.onrender.com")
     });
 });
 
-// Variables de entorno o appsettings.json (prioridad al entorno)
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? builder.Configuration["Jwt:Key"];
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["Jwt:Issuer"];
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["Jwt:Audience"];
+// JWT desde entorno
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
 
-if (string.IsNullOrWhiteSpace(jwtKey) || string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
-    throw new InvalidOperationException("Faltan configuraciones JWT en variables de entorno o appsettings.json");
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("No se encontró la clave JWT en configuración (Jwt:Key)");
 
-// Autenticación JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -110,17 +100,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-
-// Servicios propios
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 
 var app = builder.Build();
 
-// --- Middleware ---
-app.UseCors("PermitirBlazor");
-app.UseHttpsRedirection();
+// Solo en desarrollo
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
 
+// Middleware
+app.UseCors("PermitirBlazor");
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -136,7 +128,5 @@ app.Use(async (context, next) =>
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
