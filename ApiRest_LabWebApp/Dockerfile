@@ -2,26 +2,26 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copiar el .csproj (usando ruta relativa al contexto raíz)
+# Copiar el archivo .csproj y restaurar dependencias
 COPY ApiRest_LabWebApp/ApiRest_LabWebApp.csproj ./ApiRest_LabWebApp/
 WORKDIR /src/ApiRest_LabWebApp
-RUN dotnet restore "ApiRest_LabWebApp.csproj"
+RUN dotnet restore
 
-# Copiar el resto del proyecto
+# Copiar todo el contenido del proyecto
 COPY ApiRest_LabWebApp/. .
 
-# Compilar y publicar
-RUN dotnet publish "ApiRest_LabWebApp.csproj" -c Release -o /app/publish /p:UseAppHost=false
+# Publicar la aplicación
+RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 
 # Etapa 2: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Copiar archivos publicados
+# Copiar los archivos publicados desde la etapa de build
 COPY --from=build /app/publish .
 
-# Exponer el puerto
+# Exponer el puerto 80 (el mismo que en Kestrel)
 EXPOSE 80
 
-# Comando de arranque
+# Ejecutar la aplicación
 ENTRYPOINT ["dotnet", "ApiRest_LabWebApp.dll"]
