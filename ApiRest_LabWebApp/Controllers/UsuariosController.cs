@@ -28,9 +28,10 @@ namespace ApiRest_LabWebApp.Controllers
         }
 
 
-        //Endpoint: POST /api/usuarios/login
-        [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequestDto request)
+    [HttpPost("login")]
+    public IActionResult Login([FromBody] LoginRequestDto request)
+    {
+        try
         {
             Console.WriteLine($"BODY request: {request.CorreoUsuario} - {request.Clave}");
 
@@ -48,14 +49,11 @@ namespace ApiRest_LabWebApp.Controllers
             if (!(usuario.EstadoRegistro ?? false))
                 return Unauthorized("Usuario inactivo");
 
-
             var token = GenerarTokenJwt(usuario);
-            Console.WriteLine("Token generado desde API: " + token);
-
 
             return Ok(new LoginResponseDto
             {
-                Token = GenerarTokenJwt(usuario),
+                Token = token,
                 Nombre = usuario.Nombre,
                 CorreoUsuario = usuario.CorreoUsuario,
                 Rol = usuario.Rol,
@@ -63,7 +61,12 @@ namespace ApiRest_LabWebApp.Controllers
                 IdUsuario = usuario.IdUsuario
             });
         }
-
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error en login: " + ex.Message);
+            return StatusCode(500, "Error interno: " + ex.Message);
+        }
+    }
         private string GenerarTokenJwt(Usuario usuario)
         {
             var claims = new[]
@@ -73,12 +76,20 @@ namespace ApiRest_LabWebApp.Controllers
                 new Claim("idUsuario", usuario.IdUsuario.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            // Leer JWT desde variables de entorno
+            var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+            var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
+            var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
+
+            if (string.IsNullOrWhiteSpace(jwtKey) || string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
+                throw new InvalidOperationException("JWT mal configurado. Verifica las variables de entorno.");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
+                issuer: jwtIssuer,
+                audience: jwtAudience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddHours(1),
                 signingCredentials: creds
@@ -86,6 +97,7 @@ namespace ApiRest_LabWebApp.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
 
 
         [HttpGet]
