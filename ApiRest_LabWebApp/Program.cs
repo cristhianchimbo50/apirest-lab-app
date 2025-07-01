@@ -10,7 +10,9 @@ using ApiRest_LabWebApp.Helpers;
 var builder = WebApplication.CreateBuilder(args);
 
 // Cargar configuración
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddEnvironmentVariables(); // <- esta es clave
 
 // Servicios
 builder.Services.AddControllers();
