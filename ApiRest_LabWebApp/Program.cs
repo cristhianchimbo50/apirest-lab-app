@@ -65,9 +65,10 @@ builder.Services.AddCors(options =>
 });
 
 // JWT desde entorno
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
+var jwtKey = builder.Configuration["JWT_KEY"];
+var jwtIssuer = builder.Configuration["JWT_ISSUER"];
+var jwtAudience = builder.Configuration["JWT_AUDIENCE"];
+
 
 if (string.IsNullOrWhiteSpace(jwtKey))
     throw new InvalidOperationException("No se encontró la clave JWT en configuración (Jwt:Key)");
