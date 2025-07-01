@@ -65,6 +65,7 @@ builder.Services.AddCors(options =>
 });
 
 
+
 // JWT desde entorno
 var jwtKey = builder.Configuration["JWT_KEY"];
 var jwtIssuer = builder.Configuration["JWT_ISSUER"];
