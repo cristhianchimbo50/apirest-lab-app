@@ -17,7 +17,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<IEnumerable<PacienteDto>>> GetPacientes()
     {
         var pacientes = await _context.Pacientes
@@ -41,7 +41,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<PacienteDto>> GetPaciente(int id)
     {
         var p = await _context.Pacientes.FindAsync(id);
@@ -62,16 +62,15 @@ public class PacientesController : ControllerBase
             CorreoElectronicoPaciente = p.CorreoElectronicoPaciente,
             TelefonoPaciente = p.TelefonoPaciente,
             FechaRegistro = p.FechaRegistro.HasValue ? DateTime.Parse(p.FechaRegistro.Value.ToString()) : null,
-            Anulado = p.Anulado ?? false, // Fix for CS0266 and CS8629
+            Anulado = p.Anulado ?? false,
             IdUsuario = p.IdUsuario
         };
 
         return dto;
     }
 
-
     [HttpPut("{id}")]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<IActionResult> PutPaciente(int id, PacienteDto dto)
     {
         if (id != dto.IdPaciente)
@@ -111,7 +110,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeletePaciente(int id)
     {
         var paciente = await _context.Pacientes.FindAsync(id);
@@ -132,7 +131,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpGet("buscar")]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<IEnumerable<PacienteDto>>> BuscarPacientes([FromQuery] string campo, [FromQuery] string valor)
     {
         if (string.IsNullOrWhiteSpace(campo) || string.IsNullOrWhiteSpace(valor))
@@ -177,7 +176,7 @@ public class PacientesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<PacienteDto>> PostPaciente(PacienteDto dto)
     {
         var correo = User.Identity?.Name?.Trim().ToLower();
@@ -222,6 +221,4 @@ public class PacientesController : ControllerBase
 
         return Ok("Paciente anulado.");
     }
-
-
 }

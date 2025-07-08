@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class ReactivosController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -15,12 +17,14 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<Reactivo>>> GetReactivos()
     {
         return await _context.Reactivos.ToListAsync();
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<Reactivo>> GetReactivo(int id)
     {
         var reactivo = await _context.Reactivos.FindAsync(id);
@@ -34,6 +38,7 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpGet("filtrar")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<ReactivoDto>>> FiltrarReactivos(
         [FromQuery] string? nombre,
         [FromQuery] string? fabricante,
@@ -68,8 +73,8 @@ public class ReactivosController : ControllerBase
         return Ok(resultado);
     }
 
-
     [HttpPost]
+    [Authorize(Roles = "administrador")]
     public async Task<ActionResult<Reactivo>> PostReactivo(Reactivo reactivo)
     {
         _context.Reactivos.Add(reactivo);
@@ -79,6 +84,7 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> PutReactivo(int id, [FromBody] ReactivoDto dto)
     {
         var existente = await _context.Reactivos.FindAsync(id);
@@ -95,6 +101,7 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteReactivo(int id)
     {
         var reactivo = await _context.Reactivos.FindAsync(id);
@@ -115,6 +122,7 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpPost("registrar")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> RegistrarReactivo([FromBody] ReactivoDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.NombreReactivo) ||
@@ -140,6 +148,7 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpPut("anular/{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> AnularReactivo(int id)
     {
         var reactivo = await _context.Reactivos.FindAsync(id);
@@ -153,6 +162,7 @@ public class ReactivosController : ControllerBase
     }
     
     [HttpPost("examenes-reactivos")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<IActionResult> GuardarReactivos([FromBody] List<ExamenReactivoDto> lista)
     {
         if (lista == null || !lista.Any())
@@ -181,6 +191,7 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpGet("por-examen/{idExamen}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<ExamenReactivoDto>>> ObtenerPorExamen(int idExamen)
     {
         var resultado = await _context.ExamenReactivos
@@ -199,6 +210,7 @@ public class ReactivosController : ControllerBase
     }
 
     [HttpGet("asociaciones")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<AsociacionReactivoDto>>> ObtenerAsociaciones()
     {
         var resultado = await _context.ExamenReactivos
@@ -215,6 +227,4 @@ public class ReactivosController : ControllerBase
 
         return Ok(resultado);
     }
-
-
 }

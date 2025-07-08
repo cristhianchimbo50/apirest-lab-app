@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class DetallePagosController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -14,6 +17,7 @@ public class DetallePagosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<IEnumerable<DetallePago>>> GetDetallePagos()
     {
         return await _context.DetallePagos
@@ -23,6 +27,7 @@ public class DetallePagosController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<DetallePago>> GetDetallePago(int id)
     {
         var detallePago = await _context.DetallePagos
@@ -39,6 +44,7 @@ public class DetallePagosController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<DetallePago>> PostDetallePago(DetallePago detallePago)
     {
         _context.DetallePagos.Add(detallePago);
@@ -48,6 +54,7 @@ public class DetallePagosController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> PutDetallePago(int id, DetallePago detallePago)
     {
         if (id != detallePago.IdDetallePago)
@@ -73,6 +80,7 @@ public class DetallePagosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteDetallePago(int id)
     {
         var detallePago = await _context.DetallePagos.FindAsync(id);

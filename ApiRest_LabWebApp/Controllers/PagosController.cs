@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class PagosController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -16,6 +17,7 @@ public class PagosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<IEnumerable<Pago>>> GetPagos()
     {
         return await _context.Pagos
@@ -25,6 +27,7 @@ public class PagosController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<Pago>> GetPago(int id)
     {
         var pago = await _context.Pagos
@@ -41,6 +44,7 @@ public class PagosController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> PutPago(int id, Pago pago)
     {
         if (id != pago.IdPago)
@@ -66,6 +70,7 @@ public class PagosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeletePago(int id)
     {
         var pago = await _context.Pagos.FindAsync(id);
@@ -86,6 +91,7 @@ public class PagosController : ControllerBase
     }
 
     [HttpGet("orden/{idOrden}")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<IEnumerable<DetallePagoDto>>> GetPagosPorOrden(int idOrden)
     {
         var pagos = await _context.DetallePagos
@@ -106,7 +112,7 @@ public class PagosController : ControllerBase
     }
     
     [HttpPost("registrar")]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<IActionResult> RegistrarPago([FromBody] PagoDto dto)
     {
         var idUsuarioClaim = User.Claims.FirstOrDefault(c => c.Type.EndsWith("idUsuario"));
@@ -165,7 +171,6 @@ public class PagosController : ControllerBase
 
         _context.DetallePagos.AddRange(detalles);
 
-        // 🔁 ACTUALIZAR LA ORDEN
         orden.TotalPagado = (orden.TotalPagado ?? 0) + total;
         orden.SaldoPendiente = (orden.Total ?? 0) - orden.TotalPagado;
         orden.EstadoPago = orden.SaldoPendiente <= 0 ? "PAGADO" : "PENDIENTE";
@@ -174,5 +179,4 @@ public class PagosController : ControllerBase
 
         return Ok(new { mensaje = "Pago y detalle registrados, orden actualizada correctamente." });
     }
-
 }

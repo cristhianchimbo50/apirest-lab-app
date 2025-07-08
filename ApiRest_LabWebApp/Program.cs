@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Cargar configuración
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-    .AddEnvironmentVariables(); // <- esta es clave
+    .AddEnvironmentVariables();
 
 // Servicios
 builder.Services.AddControllers();

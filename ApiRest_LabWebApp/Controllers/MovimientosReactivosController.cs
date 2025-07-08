@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize] // Global, pero roles finos en cada método
 public class MovimientosReactivosController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -15,6 +17,7 @@ public class MovimientosReactivosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<MovimientoReactivo>>> GetMovimientosReactivos()
     {
         return await _context.MovimientoReactivos
@@ -24,6 +27,7 @@ public class MovimientosReactivosController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<MovimientoReactivo>> GetMovimientoReactivo(int id)
     {
         var movimiento = await _context.MovimientoReactivos
@@ -40,6 +44,7 @@ public class MovimientosReactivosController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<MovimientoReactivo>> PostMovimientoReactivo(MovimientoReactivo movimiento)
     {
         _context.MovimientoReactivos.Add(movimiento);
@@ -49,6 +54,7 @@ public class MovimientosReactivosController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> PutMovimientoReactivo(int id, MovimientoReactivo movimiento)
     {
         if (id != movimiento.IdMovimientoReactivo)
@@ -74,6 +80,7 @@ public class MovimientosReactivosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteMovimientoReactivo(int id)
     {
         var movimiento = await _context.MovimientoReactivos.FindAsync(id);
@@ -94,6 +101,7 @@ public class MovimientosReactivosController : ControllerBase
     }
 
     [HttpPost("lote")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<IActionResult> PostMovimientosReactivoLote(List<MovimientoReactivo> movimientos)
     {
         foreach (var movimiento in movimientos)
@@ -113,7 +121,8 @@ public class MovimientosReactivosController : ControllerBase
         return Ok();
     }
 
-   [HttpGet("filtrar")]
+    [HttpGet("filtrar")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<MovimientoReactivoView>>> FiltrarMovimientos(
         [FromQuery] DateTime? fechaInicio,
         [FromQuery] DateTime? fechaFin,
@@ -148,6 +157,4 @@ public class MovimientosReactivosController : ControllerBase
 
         return lista;
     }
-
-
 }

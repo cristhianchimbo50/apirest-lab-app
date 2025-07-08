@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class ResultadosController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -15,6 +17,7 @@ public class ResultadosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<ResultadoDto>>> GetResultados()
     {
         var resultados = await _context.Resultados
@@ -34,8 +37,8 @@ public class ResultadosController : ControllerBase
         return resultados;
     }
 
-
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<Resultado>> GetResultado(int id)
     {
         var resultado = await _context.Resultados
@@ -53,6 +56,7 @@ public class ResultadosController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<Resultado>> PostResultado(Resultado resultado)
     {
         _context.Resultados.Add(resultado);
@@ -64,8 +68,8 @@ public class ResultadosController : ControllerBase
         return CreatedAtAction(nameof(ObtenerDetalleResultado), new { id = resultado.IdResultado }, resultado);
     }
 
-
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<IActionResult> PutResultado(int id, Resultado resultado)
     {
         if (id != resultado.IdResultado)
@@ -91,6 +95,7 @@ public class ResultadosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteResultado(int id)
     {
         var resultado = await _context.Resultados.FindAsync(id);
@@ -111,6 +116,7 @@ public class ResultadosController : ControllerBase
     }
 
     [HttpGet("detalle/{id}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<ResultadoDetalleDto>> ObtenerDetalleResultado(int id)
     {
         var resultado = await _context.Resultados
@@ -143,6 +149,7 @@ public class ResultadosController : ControllerBase
     }
 
     [HttpPost("guardar-completo")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<IActionResult> GuardarResultadoCompleto([FromBody] ResultadoGuardarDto dto)
     {
         using var trans = await _context.Database.BeginTransactionAsync();
@@ -254,6 +261,7 @@ public class ResultadosController : ControllerBase
     }
 
     [HttpPut("anular/{id}")] 
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> AnularResultado(int id)
     {
         var resultado = await _context.Resultados
@@ -283,8 +291,4 @@ public class ResultadosController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
-
-
-
-
 }

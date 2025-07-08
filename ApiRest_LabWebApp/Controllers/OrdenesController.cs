@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize] // Global, roles por método
 public class OrdenesController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -16,31 +17,31 @@ public class OrdenesController : ControllerBase
     }
 
     [HttpGet]
-public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
-{
-    var ordenes = await _context.Ordens
-        .Include(o => o.IdPacienteNavigation)
-        .Select(o => new OrdenDto
-        {
-            IdOrden = o.IdOrden,
-            NumeroOrden = o.NumeroOrden,
-            CedulaPaciente = o.IdPacienteNavigation.CedulaPaciente,
-            NombrePaciente = o.IdPacienteNavigation.NombrePaciente,
-            FechaOrden = o.FechaOrden,
-            Total = o.Total ?? 0,
-            TotalPagado = o.TotalPagado ?? 0,
-            SaldoPendiente = o.SaldoPendiente ?? 0,
-            EstadoPago = o.EstadoPago,
-            Anulado = o.Anulado ?? false
-        })
-        .ToListAsync();
+    [Authorize(Roles = "administrador,recepcionista")]
+    public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
+    {
+        var ordenes = await _context.Ordens
+            .Include(o => o.IdPacienteNavigation)
+            .Select(o => new OrdenDto
+            {
+                IdOrden = o.IdOrden,
+                NumeroOrden = o.NumeroOrden,
+                CedulaPaciente = o.IdPacienteNavigation.CedulaPaciente,
+                NombrePaciente = o.IdPacienteNavigation.NombrePaciente,
+                FechaOrden = o.FechaOrden,
+                Total = o.Total ?? 0,
+                TotalPagado = o.TotalPagado ?? 0,
+                SaldoPendiente = o.SaldoPendiente ?? 0,
+                EstadoPago = o.EstadoPago,
+                Anulado = o.Anulado ?? false
+            })
+            .ToListAsync();
 
-    return ordenes;
-}
-
-
+        return ordenes;
+    }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<Orden>> GetOrden(int id)
     {
         var orden = await _context.Ordens
@@ -52,8 +53,6 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
                 .ThenInclude(d => d.IdResultadoNavigation)
             .FirstOrDefaultAsync(o => o.IdOrden == id);
 
-
-
         if (orden == null)
         {
             return NotFound();
@@ -63,6 +62,7 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     }
 
     [HttpPost]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<Orden>> PostOrden(Orden orden)
     {
         _context.Ordens.Add(orden);
@@ -72,6 +72,7 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> PutOrden(int id, Orden orden)
     {
         if (id != orden.IdOrden)
@@ -97,6 +98,7 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteOrden(int id)
     {
         var orden = await _context.Ordens.FindAsync(id);
@@ -117,7 +119,7 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     }
 
     [HttpGet("paciente-por-cedula/{cedula}")]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<PacienteDto>> ObtenerPacientePorCedula(string cedula)
     {
         var paciente = await _context.Pacientes
@@ -144,7 +146,7 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     }
 
     [HttpPost("completa")]
-    [Authorize]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult> RegistrarOrdenCompleta(OrdenCompletaDto dto)
     {
         if (dto == null || dto.Orden == null || dto.IdsExamenes == null || !dto.IdsExamenes.Any())
@@ -233,6 +235,7 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
     }
 
     [HttpGet("detalle/{id}")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<OrdenDetalleDto>> ObtenerDetalleOrden(int id)
     {
         var orden = await _context.Ordens
@@ -243,7 +246,6 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
             .Include(o => o.DetalleOrdens!)
                 .ThenInclude(d => d.IdResultadoNavigation)
             .FirstOrDefaultAsync(o => o.IdOrden == id);
-
 
         if (orden == null)
             return NotFound();
@@ -267,24 +269,22 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
             TotalPagado = orden.TotalPagado ?? 0,
             SaldoPendiente = orden.SaldoPendiente ?? 0,
             Examenes = orden.DetalleOrdens
-    .Where(d => d.IdResultadoNavigation == null || d.IdResultadoNavigation.Anulado == false)
-    .Select(d => new ExamenDetalleDto
-    {
-        IdExamen = d.IdExamen ?? 0,
-        NombreExamen = d.IdExamenNavigation?.NombreExamen,
-        NombreEstudio = d.IdExamenNavigation?.Estudio,
-        IdResultado = d.IdResultado,
-        NumeroResultado = d.IdResultadoNavigation?.NumeroResultado
-    }).ToList()
-
-
+                .Where(d => d.IdResultadoNavigation == null || d.IdResultadoNavigation.Anulado == false)
+                .Select(d => new ExamenDetalleDto
+                {
+                    IdExamen = d.IdExamen ?? 0,
+                    NombreExamen = d.IdExamenNavigation?.NombreExamen,
+                    NombreEstudio = d.IdExamenNavigation?.Estudio,
+                    IdResultado = d.IdResultado,
+                    NumeroResultado = d.IdResultadoNavigation?.NumeroResultado
+                }).ToList()
         };
-
 
         return dto;
     }
 
     [HttpPut("anular/{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> AnularOrden(int id)
     {
         var orden = await _context.Ordens
@@ -318,8 +318,4 @@ public async Task<ActionResult<IEnumerable<OrdenDto>>> GetOrdenes()
         await _context.SaveChangesAsync();
         return NoContent();
     }
-
-
-
-
 }

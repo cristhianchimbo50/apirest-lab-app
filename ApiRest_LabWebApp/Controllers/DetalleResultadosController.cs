@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
+using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class DetalleResultadosController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -14,6 +17,7 @@ public class DetalleResultadosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "administrador,laboratorista,recepcionista")]
     public async Task<ActionResult<IEnumerable<DetalleResultado>>> GetDetalleResultados()
     {
         return await _context.DetalleResultados
@@ -23,6 +27,7 @@ public class DetalleResultadosController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,laboratorista,recepcionista")]
     public async Task<ActionResult<DetalleResultado>> GetDetalleResultado(int id)
     {
         var detalleResultado = await _context.DetalleResultados
@@ -39,6 +44,7 @@ public class DetalleResultadosController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<DetalleResultado>> PostDetalleResultado(DetalleResultado detalleResultado)
     {
         _context.DetalleResultados.Add(detalleResultado);
@@ -48,6 +54,7 @@ public class DetalleResultadosController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<IActionResult> PutDetalleResultado(int id, DetalleResultado detalleResultado)
     {
         if (id != detalleResultado.IdDetalleResultado)
@@ -73,6 +80,7 @@ public class DetalleResultadosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteDetalleResultado(int id)
     {
         var detalleResultado = await _context.DetalleResultados.FindAsync(id);

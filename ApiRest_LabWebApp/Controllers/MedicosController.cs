@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize] // Global, pero roles específicos por método
 public class MedicosController : ControllerBase
 {
     private readonly BdLabContext _context;
@@ -15,6 +17,7 @@ public class MedicosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<IEnumerable<MedicoDto>>> GetMedicos()
     {
         var medicos = await _context.Medicos
@@ -30,8 +33,8 @@ public class MedicosController : ControllerBase
         return Ok(medicos);
     }
 
-
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<Medico>> GetMedico(int id)
     {
         var medico = await _context.Medicos
@@ -47,6 +50,7 @@ public class MedicosController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<Medico>> PostMedico(Medico medico)
     {
         _context.Medicos.Add(medico);
@@ -56,6 +60,7 @@ public class MedicosController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<IActionResult> PutMedico(int id, Medico medico)
     {
         if (id != medico.IdMedico)
@@ -81,6 +86,7 @@ public class MedicosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteMedico(int id)
     {
         var medico = await _context.Medicos.FindAsync(id);
@@ -100,8 +106,8 @@ public class MedicosController : ControllerBase
         return _context.Medicos.Any(e => e.IdMedico == id);
     }
 
-
     [HttpGet("buscar")]
+    [Authorize(Roles = "administrador,recepcionista")]
     public async Task<ActionResult<IEnumerable<MedicoDto>>> Buscar(string criterio, string valor)
     {
         var query = _context.Medicos.AsQueryable();
@@ -132,6 +138,7 @@ public class MedicosController : ControllerBase
     }
 
     [HttpPut("anular/{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> AnularMedico(int id)
     {
         var medico = await _context.Medicos.FindAsync(id);
@@ -143,5 +150,4 @@ public class MedicosController : ControllerBase
 
         return Ok();
     }
-
 }

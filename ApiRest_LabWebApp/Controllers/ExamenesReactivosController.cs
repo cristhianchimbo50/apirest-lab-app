@@ -3,8 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
-
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class ExamenesReactivosController : ControllerBase
@@ -18,6 +19,7 @@ public class ExamenesReactivosController : ControllerBase
 
     // Obtener todos los vínculos examen-reactivo
     [HttpGet]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<ExamenReactivo>>> GetExamenesReactivos()
     {
         return await _context.ExamenReactivos
@@ -29,6 +31,7 @@ public class ExamenesReactivosController : ControllerBase
 
     // Obtener vínculo por ID
     [HttpGet("{id}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<ExamenReactivo>> GetExamenReactivo(int id)
     {
         var examenReactivo = await _context.ExamenReactivos
@@ -45,6 +48,7 @@ public class ExamenesReactivosController : ControllerBase
 
     // Obtener todos los reactivos asociados a un examen
     [HttpGet("por-examen/{idExamen}")]
+    [Authorize(Roles = "administrador,laboratorista")]
     public async Task<ActionResult<IEnumerable<ExamenReactivoDto>>> ObtenerPorExamen(int idExamen)
     {
         var lista = await _context.ExamenReactivos
@@ -66,6 +70,7 @@ public class ExamenesReactivosController : ControllerBase
 
     // Registrar un conjunto de asociaciones examen-reactivo
     [HttpPost("registrar-lote")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> RegistrarLote([FromBody] List<ExamenReactivoDto> lista)
     {
         if (lista == null || lista.Count == 0)
@@ -95,6 +100,7 @@ public class ExamenesReactivosController : ControllerBase
 
     // Eliminar asociación individual
     [HttpDelete("{id}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> DeleteExamenReactivo(int id)
     {
         var examenReactivo = await _context.ExamenReactivos.FindAsync(id);
@@ -113,6 +119,7 @@ public class ExamenesReactivosController : ControllerBase
     }
 
     [HttpPost("examen/{idExamen}")]
+    [Authorize(Roles = "administrador")]
     public async Task<IActionResult> GuardarReactivosExamen(int idExamen, [FromBody] List<ReactivoAsociadoDto> lista)
     {
         var existentes = await _context.ExamenReactivos

@@ -13,12 +13,12 @@ namespace ApiRest_LabWebApp.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class UsuariosController : ControllerBase
     {
         private readonly BdLabContext _context;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
-
 
         public UsuariosController(BdLabContext context, IConfiguration configuration, IEmailService emailService)
         {
@@ -27,46 +27,48 @@ namespace ApiRest_LabWebApp.Controllers
             _emailService = emailService;
         }
 
-
-    [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequestDto request)
-    {
-        try
+        // Login: Público
+        [AllowAnonymous]
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginRequestDto request)
         {
-            Console.WriteLine($"BODY request: {request.CorreoUsuario} - {request.Clave}");
-
-            var correo = request.CorreoUsuario.Trim().ToLower();
-            var usuario = _context.Usuarios
-                .FirstOrDefault(u => u.CorreoUsuario.ToLower() == correo);
-
-            if (usuario == null)
-                return Unauthorized("Correo no registrado");
-
-            var claveOk = BCrypt.Net.BCrypt.Verify(request.Clave, usuario.ClaveUsuario);
-            if (!claveOk)
-                return Unauthorized("Contraseña incorrecta");
-
-            if (!(usuario.EstadoRegistro ?? false))
-                return Unauthorized("Usuario inactivo");
-
-            var token = GenerarTokenJwt(usuario);
-
-            return Ok(new LoginResponseDto
+            try
             {
-                Token = token,
-                Nombre = usuario.Nombre,
-                CorreoUsuario = usuario.CorreoUsuario,
-                Rol = usuario.Rol,
-                EsContraseñaTemporal = usuario.EsContraseñaTemporal ?? true,
-                IdUsuario = usuario.IdUsuario
-            });
+                Console.WriteLine($"BODY request: {request.CorreoUsuario} - {request.Clave}");
+
+                var correo = request.CorreoUsuario.Trim().ToLower();
+                var usuario = _context.Usuarios
+                    .FirstOrDefault(u => u.CorreoUsuario.ToLower() == correo);
+
+                if (usuario == null)
+                    return Unauthorized("Correo no registrado");
+
+                var claveOk = BCrypt.Net.BCrypt.Verify(request.Clave, usuario.ClaveUsuario);
+                if (!claveOk)
+                    return Unauthorized("Contraseña incorrecta");
+
+                if (!(usuario.EstadoRegistro ?? false))
+                    return Unauthorized("Usuario inactivo");
+
+                var token = GenerarTokenJwt(usuario);
+
+                return Ok(new LoginResponseDto
+                {
+                    Token = token,
+                    Nombre = usuario.Nombre,
+                    CorreoUsuario = usuario.CorreoUsuario,
+                    Rol = usuario.Rol,
+                    EsContraseñaTemporal = usuario.EsContraseñaTemporal ?? true,
+                    IdUsuario = usuario.IdUsuario
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en login: " + ex.Message);
+                return StatusCode(500, "Error interno: " + ex.Message);
+            }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error en login: " + ex.Message);
-            return StatusCode(500, "Error interno: " + ex.Message);
-        }
-    }
+
         private string GenerarTokenJwt(Usuario usuario)
         {
             var claims = new[]
@@ -98,15 +100,17 @@ namespace ApiRest_LabWebApp.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-
-
+        // Solo administrador puede ver todos los usuarios
         [HttpGet]
+        [Authorize(Roles = "administrador")]
         public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios()
         {
             return await _context.Usuarios.ToListAsync();
         }
 
+        // Solo administrador puede ver info de cualquier usuario
         [HttpGet("{id}")]
+        [Authorize(Roles = "administrador")]
         public async Task<ActionResult<Usuario>> GetUsuario(int id)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
@@ -117,7 +121,9 @@ namespace ApiRest_LabWebApp.Controllers
             return usuario;
         }
 
+        // Solo administrador puede crear usuario
         [HttpPost]
+        [Authorize(Roles = "administrador")]
         public async Task<ActionResult<Usuario>> PostUsuario(Usuario usuario)
         {
             _context.Usuarios.Add(usuario);
@@ -126,7 +132,9 @@ namespace ApiRest_LabWebApp.Controllers
             return CreatedAtAction(nameof(GetUsuario), new { id = usuario.IdUsuario }, usuario);
         }
 
+        // Solo administrador puede editar usuario
         [HttpPut("{id}")]
+        [Authorize(Roles = "administrador")]
         public async Task<IActionResult> PutUsuario(int id, Usuario usuario)
         {
             if (id != usuario.IdUsuario)
@@ -149,7 +157,9 @@ namespace ApiRest_LabWebApp.Controllers
             return NoContent();
         }
 
+        // Solo administrador puede eliminar usuario
         [HttpDelete("{id}")]
+        [Authorize(Roles = "administrador")]
         public async Task<IActionResult> DeleteUsuario(int id)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
@@ -167,9 +177,9 @@ namespace ApiRest_LabWebApp.Controllers
             return _context.Usuarios.Any(e => e.IdUsuario == id);
         }
 
-        // Endpoint protegido para verificar si el token es válido y coincide con la base de datos
-        [Authorize]
+        // Cualquier autenticado puede verificar su token
         [HttpGet("verificar-token")]
+        [Authorize]
         public async Task<IActionResult> VerificarToken()
         {
             var correo = User.Identity?.Name?.Trim().ToLower();
@@ -192,11 +202,13 @@ namespace ApiRest_LabWebApp.Controllers
             Console.WriteLine("Token válido. Usuario confirmado: " + usuario.Nombre);
             return Ok("Token válido.");
         }
+
         private static string GenerarClaveTemporal()
         {
             return Guid.NewGuid().ToString("N")[..8]; // Ej: clave de 8 caracteres
         }
 
+        // Solo administrador puede registrar usuario
         [HttpPost("registrar")]
         [Authorize(Roles = "administrador")]
         public async Task<IActionResult> RegistrarUsuario([FromBody] CrearUsuarioDto nuevo)
@@ -226,8 +238,9 @@ namespace ApiRest_LabWebApp.Controllers
             return Ok("Usuario registrado correctamente.");
         }
 
-        [Authorize]
+        // Usuario autenticado puede cambiar su clave
         [HttpPut("cambiar-clave")]
+        [Authorize]
         public async Task<IActionResult> CambiarClave([FromBody] CambiarClaveDto dto)
         {
             var correoToken = User.Identity?.Name?.Trim().ToLower();
@@ -247,6 +260,5 @@ namespace ApiRest_LabWebApp.Controllers
 
             return Ok("Contraseña actualizada.");
         }
-
     }
 }

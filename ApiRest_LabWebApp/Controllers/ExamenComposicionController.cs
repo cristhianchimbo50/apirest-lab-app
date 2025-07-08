@@ -7,11 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.Dto;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ApiRest_LabWebApp.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ExamenComposicionController : ControllerBase
     {
         private readonly BdLabContext _context;
@@ -23,6 +25,7 @@ namespace ApiRest_LabWebApp.Controllers
 
         // GET: api/ExamenComposicion
         [HttpGet]
+        [Authorize(Roles = "administrador,laboratorista")]
         public async Task<ActionResult<IEnumerable<ExamenComposicion>>> GetExamenComposiciones()
         {
             return await _context.ExamenComposiciones.ToListAsync();
@@ -30,6 +33,7 @@ namespace ApiRest_LabWebApp.Controllers
 
         // GET: api/ExamenComposicion/5
         [HttpGet("{id}")]
+        [Authorize(Roles = "administrador,laboratorista")]
         public async Task<ActionResult<ExamenComposicion>> GetExamenComposicion(int id)
         {
             var examenComposicion = await _context.ExamenComposiciones.FindAsync(id);
@@ -45,6 +49,7 @@ namespace ApiRest_LabWebApp.Controllers
         // PUT: api/ExamenComposicion/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
+        [Authorize(Roles = "administrador")]
         public async Task<IActionResult> PutExamenComposicion(int id, ExamenComposicion examenComposicion)
         {
             if (id != examenComposicion.IdExamenPadre)
@@ -76,6 +81,7 @@ namespace ApiRest_LabWebApp.Controllers
         // POST: api/ExamenComposicion
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
+        [Authorize(Roles = "administrador")]
         public async Task<ActionResult<ExamenComposicion>> PostExamenComposicion(ExamenComposicion examenComposicion)
         {
             _context.ExamenComposiciones.Add(examenComposicion);
@@ -100,6 +106,7 @@ namespace ApiRest_LabWebApp.Controllers
 
         // DELETE: api/ExamenComposicion/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "administrador")]
         public async Task<IActionResult> DeleteExamenComposicion(int id)
         {
             var examenComposicion = await _context.ExamenComposiciones.FindAsync(id);
@@ -121,6 +128,7 @@ namespace ApiRest_LabWebApp.Controllers
 
         // GET: api/ExamenComposicion/padre/5
         [HttpGet("padre/{idExamenPadre}")]
+        [Authorize(Roles = "administrador,laboratorista")]
         public async Task<ActionResult<IEnumerable<ExamenDto>>> GetHijosDeExamen(int idExamenPadre)
         {
             var hijos = await _context.ExamenComposiciones
@@ -141,6 +149,7 @@ namespace ApiRest_LabWebApp.Controllers
 
         // DELETE: api/ExamenComposicion/padre/5/hijo/3
         [HttpDelete("padre/{idPadre}/hijo/{idHijo}")]
+    [Authorize(Roles = "administrador")]
         public async Task<IActionResult> DeleteComposicion(int idPadre, int idHijo)
         {
             var composicion = await _context.ExamenComposiciones

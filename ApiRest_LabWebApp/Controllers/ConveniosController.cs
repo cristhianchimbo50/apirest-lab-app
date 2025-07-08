@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(Roles = "administrador")]
 public class ConveniosController : ControllerBase
 {
     private readonly BdLabContext _context;
