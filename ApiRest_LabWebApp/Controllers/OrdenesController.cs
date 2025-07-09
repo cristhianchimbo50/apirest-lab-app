@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using ApiRest_LabWebApp.Services;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -11,9 +12,12 @@ public class OrdenesController : ControllerBase
 {
     private readonly BdLabContext _context;
 
-    public OrdenesController(BdLabContext context)
+    private readonly PdfTicketService _pdfTicketService;
+
+    public OrdenesController(BdLabContext context, PdfTicketService pdfTicketService)
     {
         _context = context;
+        _pdfTicketService = pdfTicketService;
     }
 
     [HttpGet]
@@ -29,7 +33,7 @@ public class OrdenesController : ControllerBase
                 CedulaPaciente = o.IdPacienteNavigation.CedulaPaciente,
                 NombrePaciente = o.IdPacienteNavigation.NombrePaciente,
                 FechaOrden = o.FechaOrden,
-                Total = o.Total ?? 0,
+                Total = o.Total,
                 TotalPagado = o.TotalPagado ?? 0,
                 SaldoPendiente = o.SaldoPendiente ?? 0,
                 EstadoPago = o.EstadoPago,
@@ -253,7 +257,7 @@ public class OrdenesController : ControllerBase
         var dto = new OrdenDetalleDto
         {
             IdOrden = orden.IdOrden,
-            IdPaciente = orden.IdPaciente,
+            IdPaciente = orden.IdPaciente ?? 0,
             IdMedico = orden.IdMedico,
             NombreMedico = orden.IdMedicoNavigation?.NombreMedico ?? "",
             NumeroOrden = orden.NumeroOrden,
@@ -265,7 +269,7 @@ public class OrdenesController : ControllerBase
             CorreoPaciente = orden.IdPacienteNavigation?.CorreoElectronicoPaciente,
             TelefonoPaciente = orden.IdPacienteNavigation?.TelefonoPaciente,
             Anulado = orden.Anulado,
-            TotalOrden = orden.Total ?? 0,
+            TotalOrden = orden.Total,
             TotalPagado = orden.TotalPagado ?? 0,
             SaldoPendiente = orden.SaldoPendiente ?? 0,
             Examenes = orden.DetalleOrdens
@@ -318,4 +322,43 @@ public class OrdenesController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    [HttpGet("{id}/ticket-pdf")]
+[Authorize(Roles = "administrador,recepcionista")]
+public async Task<IActionResult> ObtenerTicketPdf(int id)
+{
+    var orden = await _context.Ordens
+        .Include(o => o.IdPacienteNavigation)
+        .Include(o => o.IdMedicoNavigation)
+        .Include(o => o.DetalleOrdens!)
+            .ThenInclude(d => d.IdExamenNavigation)
+        .FirstOrDefaultAsync(o => o.IdOrden == id);
+
+    if (orden == null)
+        return NotFound("Orden no encontrada.");
+
+    var ordenDto = new OrdenTicketDto
+    {
+        NumeroOrden = orden.NumeroOrden,
+        FechaOrden = orden.FechaOrden.ToDateTime(TimeOnly.MinValue),
+        NombrePaciente = orden.IdPacienteNavigation?.NombrePaciente ?? "-",
+        CedulaPaciente = orden.IdPacienteNavigation?.CedulaPaciente ?? "-",
+        EdadPaciente = orden.IdPacienteNavigation?.EdadPaciente ?? 0,
+        NombreMedico = orden.IdMedicoNavigation?.NombreMedico ?? "-",
+        Total = orden.Total,
+        TotalPagado = orden.TotalPagado ?? 0,
+        SaldoPendiente = orden.SaldoPendiente ?? 0,
+        TipoPago = orden.EstadoPago,
+        Examenes = orden.DetalleOrdens.Select(d => new ExamenTicketDto
+        {
+            NombreExamen = d.IdExamenNavigation?.NombreExamen ?? "-",
+            Precio = d.Precio ?? 0
+        }).ToList()
+    };
+
+    var pdfBytes = _pdfTicketService.GenerarTicketOrden(ordenDto);
+
+    return File(pdfBytes, "application/pdf", $"orden_{orden.NumeroOrden}_ticket.pdf");
+}
+
 }

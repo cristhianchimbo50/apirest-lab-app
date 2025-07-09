@@ -27,10 +27,11 @@ public partial class Paciente
 
     public int? IdUsuario { get; set; }
 
+    public string Nombres { get; set; } = null!;
+
     public virtual Usuario? IdUsuarioNavigation { get; set; }
 
     public virtual ICollection<Orden> Ordens { get; set; } = new List<Orden>();
 
     public virtual ICollection<Resultado> Resultados { get; set; } = new List<Resultado>();
-    public string Nombres { get; internal set; }
 }

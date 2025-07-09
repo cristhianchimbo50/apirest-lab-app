@@ -19,5 +19,7 @@
         public decimal Valor { get; set; }
         public string? Unidad { get; set; }
         public string? Observacion { get; set; }
+        public string ValorReferencia { get; set; } = "";
+        public string? TituloExamen { get; set; }
     }
 }

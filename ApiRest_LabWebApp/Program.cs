@@ -107,6 +107,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.AddScoped<ResultadoService>();
+builder.Services.AddScoped<PdfService>();
+builder.Services.AddScoped<PdfTicketService>();
 
 var app = builder.Build();
 

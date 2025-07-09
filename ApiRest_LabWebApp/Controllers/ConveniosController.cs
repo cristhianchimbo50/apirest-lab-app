@@ -65,7 +65,7 @@ public class ConveniosController : ControllerBase
                 IdOrden = dc.Orden.IdOrden,
                 NumeroOrden = dc.Orden.NumeroOrden,
                 Paciente = dc.Orden.IdPacienteNavigation?.NombrePaciente ?? "",
-                Total = dc.Orden.Total ?? 0m,
+                Total = dc.Orden.Total,
                 EstadoPago = dc.Orden.EstadoPago, FechaOrden = dc.Orden.FechaOrden
             }).ToList()
         };

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ApiRest_LabWebApp.Models;
 using ApiRest_LabWebApp.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using ApiRest_LabWebApp.Services;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -10,10 +11,14 @@ using Microsoft.AspNetCore.Authorization;
 public class ResultadosController : ControllerBase
 {
     private readonly BdLabContext _context;
+    private readonly ResultadoService _resultadoService;
+    private readonly PdfService _pdfService;
 
-    public ResultadosController(BdLabContext context)
+    public ResultadosController(BdLabContext context, ResultadoService resultadoService, PdfService pdfService)
     {
         _context = context;
+        _resultadoService = resultadoService;
+        _pdfService = pdfService;
     }
 
     [HttpGet]
@@ -141,7 +146,8 @@ public class ResultadosController : ControllerBase
                 NombreExamen = dr.IdExamenNavigation?.NombreExamen ?? "",
                 Valor = dr.Valor,
                 Unidad = dr.Unidad,
-                Observacion = dr.Observacion
+                Observacion = dr.Observacion,
+                ValorReferencia = dr.ValorReferencia
             }).ToList()
         };
 
@@ -184,6 +190,7 @@ public class ResultadosController : ControllerBase
                     Valor = ex.Valor,
                     Unidad = ex.Unidad,
                     Observacion = ex.Observacion,
+                    ValorReferencia = ex.ValorReferencia,
                     Anulado = false
                 };
                 _context.DetalleResultados.Add(detalle);
@@ -191,8 +198,16 @@ public class ResultadosController : ControllerBase
 
             // 3. Actualizar detalle_orden
             var idsExamenes = dto.Examenes.Select(e => e.IdExamen).ToList();
+
+            var idsPadres = await _context.ExamenComposiciones
+                .Where(ec => idsExamenes.Contains(ec.IdExamenHijo))
+                .Select(ec => ec.IdExamenPadre)
+                .ToListAsync();
+
+
+            var idsFinales = idsExamenes.Concat(idsPadres).Distinct().ToList();
             var detallesOrden = await _context.DetalleOrdens
-                .Where(d => d.IdOrden == dto.IdOrden && d.IdExamen.HasValue && idsExamenes.Contains(d.IdExamen.Value))
+                .Where(d => d.IdOrden == dto.IdOrden && d.IdExamen.HasValue && idsFinales.Contains(d.IdExamen.Value))
                 .ToListAsync();
 
             foreach (var det in detallesOrden)
@@ -260,7 +275,7 @@ public class ResultadosController : ControllerBase
         }
     }
 
-    [HttpPut("anular/{id}")] 
+    [HttpPut("anular/{id}")]
     [Authorize(Roles = "administrador")]
     public async Task<IActionResult> AnularResultado(int id)
     {
@@ -291,4 +306,32 @@ public class ResultadosController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    [HttpPost("pdf-multiple")]
+    [Authorize(Roles = "administrador,recepcionista,laboratorista")]
+    public async Task<IActionResult> ObtenerResultadosPdf([FromBody] List<int> ids)
+    {
+        if (ids == null || !ids.Any())
+            return BadRequest(new { mensaje = "Debe proporcionar al menos un ID de resultado." });
+
+        var resultados = new List<ResultadoCompletoDto>();
+
+        foreach (var id in ids)
+        {
+            var resultado = await _resultadoService.ObtenerResultadoCompletoAsync(id);
+            if (resultado != null)
+                resultados.Add(resultado);
+        }
+
+        if (!resultados.Any())
+            return NotFound(new { mensaje = "No se encontraron resultados válidos." });
+
+        var pdfBytes = _pdfService.GenerarResultadosPdf(resultados);
+
+        var nombreArchivo = $"Resultado_{resultados.First().NumeroOrden}.pdf";
+
+        return File(pdfBytes, "application/pdf", nombreArchivo);
+    }
+
+
 }

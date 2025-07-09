@@ -186,6 +186,10 @@ public partial class BdLabContext : DbContext
                 .HasColumnType("decimal(10, 2)")
                 .HasColumnName("valor");
 
+            entity.Property(e => e.ValorReferencia)
+                .HasMaxLength(100)
+                .HasColumnName("valor_referencia");
+
             entity.HasOne(d => d.IdExamenNavigation).WithMany(p => p.DetalleResultados)
                 .HasForeignKey(d => d.IdExamen)
                 .OnDelete(DeleteBehavior.Cascade)

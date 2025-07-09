@@ -35,7 +35,7 @@ public class DetalleConveniosController : ControllerBase
         {
             return NotFound();
         }
-
+        Console.WriteLine($"DetalleConvenio encontrado: {detalleConvenio.IdDetalleConvenio}, Convenio: {detalleConvenio.IdConvenioNavigation?.IdConvenio}");
         return detalleConvenio;
     }
 

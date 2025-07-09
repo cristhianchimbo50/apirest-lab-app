@@ -14,9 +14,13 @@ public partial class DetalleResultado
     public decimal Valor { get; set; }
 
     public string? Unidad { get; set; }
+
     public string? Observacion { get; set; }
 
     public bool? Anulado { get; set; }
+
+    public string? ValorReferencia { get; set; }
+
 
     public virtual Examen? IdExamenNavigation { get; set; }
 

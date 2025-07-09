@@ -160,7 +160,7 @@ public class ReactivosController : ControllerBase
 
         return Ok(new { mensaje = "Reactivo anulado correctamente." });
     }
-    
+
     [HttpPost("examenes-reactivos")]
     [Authorize(Roles = "administrador,laboratorista")]
     public async Task<IActionResult> GuardarReactivos([FromBody] List<ExamenReactivoDto> lista)
@@ -199,7 +199,7 @@ public class ReactivosController : ControllerBase
             .Include(er => er.IdReactivoNavigation)
             .Select(er => new ExamenReactivoDto
             {
-                IdReactivo = er.IdReactivo ?? 0, 
+                IdReactivo = er.IdReactivo ?? 0,
                 IdExamen = er.IdExamen ?? 0,
                 CantidadUsada = er.CantidadUsada ?? 0m,
                 NombreReactivo = er.IdReactivoNavigation!.NombreReactivo,
@@ -227,4 +227,5 @@ public class ReactivosController : ControllerBase
 
         return Ok(resultado);
     }
+    
 }

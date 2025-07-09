@@ -172,7 +172,7 @@ public class PagosController : ControllerBase
         _context.DetallePagos.AddRange(detalles);
 
         orden.TotalPagado = (orden.TotalPagado ?? 0) + total;
-        orden.SaldoPendiente = (orden.Total ?? 0) - orden.TotalPagado;
+        orden.SaldoPendiente = (orden.Total) - orden.TotalPagado;
         orden.EstadoPago = orden.SaldoPendiente <= 0 ? "PAGADO" : "PENDIENTE";
 
         await _context.SaveChangesAsync();

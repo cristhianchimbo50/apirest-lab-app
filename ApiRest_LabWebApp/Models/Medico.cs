@@ -17,7 +17,6 @@ public partial class Medico
 
     public bool Anulado { get; set; }
 
-
     public int? IdUsuario { get; set; }
 
     public virtual ICollection<Convenio> Convenios { get; set; } = new List<Convenio>();
